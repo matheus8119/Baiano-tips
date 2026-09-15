@@ -8,17 +8,24 @@ dotenv.config();
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const BASE_URL =
-  process.env.BASE_URL || `http://localhost:${PORT}`;
 
-const MERCADOPAGO_ACCESS_TOKEN =
-  process.env.MERCADOPAGO_ACCESS_TOKEN;
+const BASE_URL = (
+  process.env.BASE_URL ||
+  `http://localhost:${PORT}`
+).trim();
 
-const TELEGRAM_INVITE_URL =
-  process.env.TELEGRAM_INVITE_URL || "";
+const MERCADOPAGO_ACCESS_TOKEN = (
+  process.env.MERCADOPAGO_ACCESS_TOKEN || ""
+).trim();
+
+const TELEGRAM_INVITE_URL = (
+  process.env.TELEGRAM_INVITE_URL || ""
+).trim();
 
 const PIX_ENABLED =
-  String(process.env.PIX_ENABLED || "true").toLowerCase() === "true";
+  String(process.env.PIX_ENABLED || "true")
+    .trim()
+    .toLowerCase() === "true";
 
 app.use(express.json());
 app.use(express.static("public"));
@@ -85,7 +92,9 @@ function cleanCPF(cpf) {
 function validCPF(cpf) {
   cpf = cleanCPF(cpf);
 
-  if (cpf.length !== 11) return false;
+  if (cpf.length !== 11) {
+    return false;
+  }
 
   if (/^(\d)\1{10}$/.test(cpf)) {
     return false;
@@ -99,7 +108,9 @@ function validCPF(cpf) {
 
   let digit1 = 11 - (sum % 11);
 
-  if (digit1 >= 10) digit1 = 0;
+  if (digit1 >= 10) {
+    digit1 = 0;
+  }
 
   if (digit1 !== Number(cpf[9])) {
     return false;
@@ -113,13 +124,99 @@ function validCPF(cpf) {
 
   let digit2 = 11 - (sum % 11);
 
-  if (digit2 >= 10) digit2 = 0;
+  if (digit2 >= 10) {
+    digit2 = 0;
+  }
 
   return digit2 === Number(cpf[10]);
 }
 
 /* =========================
    MERCADO PAGO
+========================= */
+
+async function mercadoPagoRequest(
+  url,
+  options = {}
+) {
+  if (!MERCADOPAGO_ACCESS_TOKEN) {
+    throw new Error(
+      "MERCADOPAGO_ACCESS_TOKEN não está configurado no Render."
+    );
+  }
+
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Authorization:
+      `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
+    ...(options.headers || {})
+  };
+
+  console.log(
+    "Mercado Pago Authorization:",
+    `Bearer ${MERCADOPAGO_ACCESS_TOKEN.slice(0, 12)}...`
+  );
+
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  const text = await response.text();
+
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {
+      raw: text
+    };
+  }
+
+  if (!response.ok) {
+    console.error(
+      "Mercado Pago HTTP:",
+      response.status
+    );
+
+    console.error(
+      "Mercado Pago resposta:",
+      JSON.stringify(data, null, 2)
+    );
+
+    let message =
+      data?.message ||
+      data?.error ||
+      data?.raw ||
+      "Erro na API do Mercado Pago.";
+
+    if (Array.isArray(data?.cause)) {
+      const causes = data.cause
+        .map((item) => {
+          return (
+            `${item.code || "ERRO"} - ` +
+            `${item.description || ""}`
+          );
+        })
+        .join(" | ");
+
+      if (causes) {
+        message += ` | ${causes}`;
+      }
+    }
+
+    throw new Error(
+      `${message} (HTTP ${response.status})`
+    );
+  }
+
+  return data;
+}
+
+/* =========================
+   CRIAR PIX MERCADO PAGO
 ========================= */
 
 async function createMercadoPagoPix({
@@ -130,246 +227,265 @@ async function createMercadoPagoPix({
   description,
   externalReference
 }) {
-  if (!MERCADOPAGO_ACCESS_TOKEN) {
-    throw new Error(
-      "MERCADOPAGO_ACCESS_TOKEN não está configurado no Render."
-    );
-  }
+  const idempotencyKey =
+    crypto.randomUUID();
 
-  const idempotencyKey = crypto.randomUUID();
+  const body = {
+    transaction_amount:
+      Number(amount),
 
-  const response = await fetch(
-    "https://api.mercadopago.com/v1/payments",
-    {
-      method: "POST",
+    description,
 
-      headers: {
-        "Authorization": `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-        "X-Idempotency-Key": idempotencyKey
-      },
+    payment_method_id:
+      "pix",
 
-      body: JSON.stringify({
-        transaction_amount: Number(amount),
-        description,
-        payment_method_id: "pix",
+    payer: {
+      email,
 
-        payer: {
-          email,
+      first_name:
+        String(name || "")
+          .trim()
+          .split(" ")[0] || "Cliente",
 
-          first_name:
-            String(name || "")
-              .trim()
-              .split(" ")[0] || "Cliente",
+      identification: {
+        type: "CPF",
+        number: cleanCPF(cpf)
+      }
+    },
 
-          identification: {
-            type: "CPF",
-            number: cleanCPF(cpf)
-          }
-        },
+    external_reference:
+      externalReference,
 
-        external_reference: externalReference,
+    notification_url:
+      `${BASE_URL}/api/mercadopago/webhook`
+  };
 
-        notification_url:
-          `${BASE_URL}/api/mercadopago/webhook`
-      })
-    }
+  console.log(
+    "Criando PIX no Mercado Pago..."
   );
 
-  const data = await response.json();
+  const payment =
+    await mercadoPagoRequest(
+      "https://api.mercadopago.com/v1/payments",
+      {
+        method: "POST",
 
-  if (!response.ok) {
-    console.error(
-      "ERRO MERCADO PAGO:",
-      JSON.stringify(data, null, 2)
+        headers: {
+          "X-Idempotency-Key":
+            idempotencyKey
+        },
+
+        body: JSON.stringify(body)
+      }
     );
 
-    const message =
-      data?.message ||
-      data?.error ||
-      "Erro ao criar pagamento no Mercado Pago.";
-
-    const cause =
-      Array.isArray(data?.cause)
-        ? data.cause
-            .map((item) =>
-              `${item.code || "ERRO"} - ${item.description || ""}`
-            )
-            .join(" | ")
-        : "";
-
-    throw new Error(
-      cause
-        ? `${message} | ${cause}`
-        : message
-    );
-  }
-
-  return data;
+  return payment;
 }
 
 /* =========================
    CRIAR PAGAMENTO
 ========================= */
 
-app.post("/api/create-payment", async (req, res) => {
-  try {
-    if (!PIX_ENABLED) {
-      return res.status(503).json({
-        success: false,
-        message: "PIX está desativado."
-      });
-    }
+app.post(
+  "/api/create-payment",
+  async (req, res) => {
+    try {
+      if (!PIX_ENABLED) {
+        return res.status(503).json({
+          success: false,
+          message:
+            "PIX está desativado."
+        });
+      }
 
-    const {
-      name,
-      cpf,
-      email,
-      plan
-    } = req.body;
-
-    if (!name || !cpf || !email || !plan) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Preencha nome, CPF, e-mail e plano."
-      });
-    }
-
-    const cleanCpf = cleanCPF(cpf);
-
-    if (!validCPF(cleanCpf)) {
-      return res.status(400).json({
-        success: false,
-        message: "CPF inválido."
-      });
-    }
-
-    if (!plans[plan]) {
-      return res.status(400).json({
-        success: false,
-        message: "Plano inválido."
-      });
-    }
-
-    const selectedPlan = plans[plan];
-
-    const externalReference =
-      `BAIANOTIPS-${Date.now()}-${crypto
-        .randomBytes(4)
-        .toString("hex")
-        .toUpperCase()}`;
-
-    const payment =
-      await createMercadoPagoPix({
+      const {
         name,
+        cpf,
         email,
-        cpf: cleanCpf,
-        amount: selectedPlan.amount,
-        description:
-          `Baiano Tips - ${selectedPlan.name}`,
-        externalReference
+        plan
+      } = req.body;
+
+      if (
+        !name ||
+        !cpf ||
+        !email ||
+        !plan
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Preencha nome, CPF, e-mail e plano."
+        });
+      }
+
+      const cleanCpf =
+        cleanCPF(cpf);
+
+      if (!validCPF(cleanCpf)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "CPF inválido."
+        });
+      }
+
+      if (!plans[plan]) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Plano inválido."
+        });
+      }
+
+      const selectedPlan =
+        plans[plan];
+
+      const externalReference =
+        `BAIANOTIPS-${Date.now()}-${crypto
+          .randomBytes(4)
+          .toString("hex")
+          .toUpperCase()}`;
+
+      const payment =
+        await createMercadoPagoPix({
+          name,
+          email,
+          cpf: cleanCpf,
+
+          amount:
+            selectedPlan.amount,
+
+          description:
+            `Baiano Tips - ${selectedPlan.name}`,
+
+          externalReference
+        });
+
+      const transactionData =
+        payment
+          ?.point_of_interaction
+          ?.transaction_data;
+
+      const qrCode =
+        transactionData?.qr_code ||
+        null;
+
+      const qrCodeBase64 =
+        transactionData?.qr_code_base64 ||
+        null;
+
+      const paymentId =
+        payment?.id
+          ? String(payment.id)
+          : "";
+
+      if (!paymentId || !qrCode) {
+        console.error(
+          "Mercado Pago não retornou PIX:",
+          JSON.stringify(
+            payment,
+            null,
+            2
+          )
+        );
+
+        return res.status(500).json({
+          success: false,
+
+          message:
+            "O Mercado Pago respondeu, mas não retornou os dados do PIX.",
+
+          details: payment
+        });
+      }
+
+      db.prepare(`
+        INSERT INTO payments (
+          cpf,
+          order_id,
+          name,
+          email,
+          plan,
+          amount,
+          status,
+          active_until,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        cleanCpf,
+
+        paymentId,
+
+        name,
+
+        email,
+
+        plan,
+
+        selectedPlan.amount,
+
+        payment.status ||
+          "pending",
+
+        null,
+
+        new Date().toISOString()
+      );
+
+      return res.json({
+        success: true,
+
+        paymentId,
+
+        orderId:
+          paymentId,
+
+        status:
+          payment.status ||
+          "pending",
+
+        pix:
+          qrCode,
+
+        qrCode:
+          qrCode,
+
+        qrCodeBase64:
+          qrCodeBase64
+            ? `data:image/png;base64,${qrCodeBase64}`
+            : null,
+
+        amount:
+          selectedPlan.amount,
+
+        plan,
+
+        message:
+          "PIX criado com sucesso."
       });
 
-    const transactionData =
-      payment?.point_of_interaction
-        ?.transaction_data;
-
-    const qrCode =
-      transactionData?.qr_code || null;
-
-    const qrCodeBase64 =
-      transactionData?.qr_code_base64 || null;
-
-    const paymentId =
-      String(payment?.id || "");
-
-    if (!paymentId || !qrCode) {
+    } catch (error) {
       console.error(
-        "Resposta sem dados PIX:",
-        JSON.stringify(payment, null, 2)
+        "ERRO /api/create-payment:"
       );
+
+      console.error(error);
 
       return res.status(500).json({
         success: false,
+
         message:
-          "O Mercado Pago criou o pagamento, mas não retornou os dados do PIX.",
-        payment
+          error?.message ||
+          "Não foi possível gerar o PIX.",
+
+        error:
+          error?.message ||
+          "Erro desconhecido."
       });
     }
-
-    db.prepare(`
-      INSERT INTO payments (
-        cpf,
-        order_id,
-        name,
-        email,
-        plan,
-        amount,
-        status,
-        active_until,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      cleanCpf,
-      paymentId,
-      name,
-      email,
-      plan,
-      selectedPlan.amount,
-      payment.status || "pending",
-      null,
-      new Date().toISOString()
-    );
-
-    return res.json({
-      success: true,
-
-      paymentId,
-
-      orderId: paymentId,
-
-      status:
-        payment.status || "pending",
-
-      pix: qrCode,
-
-      qrCode: qrCode,
-
-      qrCodeBase64:
-
-        qrCodeBase64
-          ? `data:image/png;base64,${qrCodeBase64}`
-          : null,
-
-      amount: selectedPlan.amount,
-
-      plan,
-
-      message:
-        "PIX criado com sucesso."
-    });
-
-  } catch (error) {
-    console.error(
-      "ERRO /api/create-payment:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-
-      message:
-        error?.message ||
-        "Não foi possível gerar o PIX.",
-
-      error:
-        error?.message ||
-        "Erro desconhecido."
-    });
   }
-});
+);
 
 /* =========================
    WEBHOOK MERCADO PAGO
@@ -381,12 +497,17 @@ app.post(
     try {
       console.log(
         "WEBHOOK MERCADO PAGO:",
-        JSON.stringify(req.body, null, 2)
+        JSON.stringify(
+          req.body,
+          null,
+          2
+        )
       );
 
       res.sendStatus(200);
 
-      const data = req.body || {};
+      const data =
+        req.body || {};
 
       let paymentId =
         data?.data?.id ||
@@ -397,44 +518,29 @@ app.post(
         return;
       }
 
-      paymentId = String(paymentId);
-
-      if (!MERCADOPAGO_ACCESS_TOKEN) {
-        console.error(
-          "Token do Mercado Pago não configurado."
-        );
-        return;
-      }
-
-      const response = await fetch(
-        `https://api.mercadopago.com/v1/payments/${paymentId}`,
-        {
-          headers: {
-            "Authorization":
-              `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        console.error(
-          "Não foi possível consultar pagamento:",
-          paymentId
-        );
-
-        return;
-      }
+      paymentId =
+        String(paymentId);
 
       const payment =
-        await response.json();
+        await mercadoPagoRequest(
+          `https://api.mercadopago.com/v1/payments/${paymentId}`,
+          {
+            method: "GET"
+          }
+        );
 
       console.log(
         "PAGAMENTO CONSULTADO:",
-        JSON.stringify(payment, null, 2)
+        JSON.stringify(
+          payment,
+          null,
+          2
+        )
       );
 
       const status =
-        payment.status || "pending";
+        payment.status ||
+        "pending";
 
       const paymentRow =
         db.prepare(`
@@ -463,9 +569,14 @@ app.post(
         const startDate =
           new Date();
 
+        const days =
+          plans[
+            paymentRow.plan
+          ]?.days || 0;
+
         startDate.setDate(
           startDate.getDate() +
-          (plans[paymentRow.plan]?.days || 0)
+          days
         );
 
         activeUntil =
@@ -501,101 +612,118 @@ app.post(
    CONSULTAR ACESSO
 ========================= */
 
-app.get("/api/access", (req, res) => {
-  try {
-    const email =
-      String(req.query.email || "")
-        .trim()
-        .toLowerCase();
+app.get(
+  "/api/access",
+  (req, res) => {
+    try {
+      const email =
+        String(
+          req.query.email || ""
+        )
+          .trim()
+          .toLowerCase();
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Informe o e-mail."
-      });
-    }
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Informe o e-mail."
+        });
+      }
 
-    const payment =
-      db.prepare(`
-        SELECT *
-        FROM payments
-        WHERE LOWER(email) = ?
-          AND status = 'approved'
-        ORDER BY id DESC
-        LIMIT 1
-      `).get(email);
+      const payment =
+        db.prepare(`
+          SELECT *
+          FROM payments
+          WHERE LOWER(email) = ?
+            AND status = 'approved'
+          ORDER BY id DESC
+          LIMIT 1
+        `).get(email);
 
-    if (!payment) {
+      if (!payment) {
+        return res.json({
+          success: false,
+          active: false,
+          message:
+            "Nenhuma assinatura ativa encontrada."
+        });
+      }
+
+      const activeUntil =
+        payment.active_until
+          ? new Date(
+              payment.active_until
+            )
+          : null;
+
+      const now =
+        new Date();
+
+      if (
+        !activeUntil ||
+        activeUntil <= now
+      ) {
+        return res.json({
+          success: false,
+          active: false,
+          message:
+            "Sua assinatura está expirada."
+        });
+      }
+
       return res.json({
-        success: false,
-        active: false,
+        success: true,
+
+        active: true,
+
+        name:
+          payment.name,
+
+        plan:
+          payment.plan,
+
+        activeUntil:
+          payment.active_until,
+
+        telegram:
+          TELEGRAM_INVITE_URL ||
+          null,
+
         message:
-          "Nenhuma assinatura ativa encontrada."
+          "Assinatura ativa."
+      });
+
+    } catch (error) {
+      console.error(
+        "ERRO /api/access:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Erro ao consultar acesso."
       });
     }
-
-    const activeUntil =
-      payment.active_until
-        ? new Date(payment.active_until)
-        : null;
-
-    const now =
-      new Date();
-
-    if (
-      !activeUntil ||
-      activeUntil <= now
-    ) {
-      return res.json({
-        success: false,
-        active: false,
-        message:
-          "Sua assinatura está expirada."
-      });
-    }
-
-    return res.json({
-      success: true,
-      active: true,
-
-      name: payment.name,
-
-      plan: payment.plan,
-
-      activeUntil:
-        payment.active_until,
-
-      telegram:
-        TELEGRAM_INVITE_URL || null,
-
-      message:
-        "Assinatura ativa."
-    });
-
-  } catch (error) {
-    console.error(
-      "ERRO /api/access:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Erro ao consultar acesso."
-    });
   }
-});
+);
 
 /* =========================
    HEALTH
 ========================= */
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    server: "online",
-    provider: "mercadopago"
-  });
-});
+app.get(
+  "/api/health",
+  (req, res) => {
+    res.json({
+      server: "online",
+
+      provider:
+        "mercadopago"
+    });
+  }
+);
 
 /* =========================
    CONFIG TEST
@@ -612,13 +740,29 @@ app.get(
           MERCADOPAGO_ACCESS_TOKEN
         ),
 
-      pixEnabled: PIX_ENABLED,
+      mercadoPagoTokenPrefix:
+        MERCADOPAGO_ACCESS_TOKEN
+          ? MERCADOPAGO_ACCESS_TOKEN.slice(
+              0,
+              8
+            )
+          : null,
+
+      mercadoPagoTokenLength:
+        MERCADOPAGO_ACCESS_TOKEN
+          ? MERCADOPAGO_ACCESS_TOKEN.length
+          : 0,
+
+      pixEnabled:
+        PIX_ENABLED,
 
       baseUrlConfigured:
         Boolean(BASE_URL),
 
       telegramConfigured:
-        Boolean(TELEGRAM_INVITE_URL),
+        Boolean(
+          TELEGRAM_INVITE_URL
+        ),
 
       message:
         "Configuração carregada com sucesso."
@@ -630,16 +774,27 @@ app.get(
    INICIAR SERVIDOR
 ========================= */
 
-app.listen(PORT, () => {
-  console.log(
-    `Servidor online na porta ${PORT}`
-  );
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      `Servidor online na porta ${PORT}`
+    );
 
-  console.log(
-    `Mercado Pago configurado: ${
-      MERCADOPAGO_ACCESS_TOKEN
-        ? "SIM"
-        : "NÃO"
-    }`
-  );
-});
+    console.log(
+      `Mercado Pago configurado: ${
+        MERCADOPAGO_ACCESS_TOKEN
+          ? "SIM"
+          : "NÃO"
+      }`
+    );
+
+    console.log(
+      `PIX habilitado: ${
+        PIX_ENABLED
+          ? "SIM"
+          : "NÃO"
+      }`
+    );
+  }
+);
