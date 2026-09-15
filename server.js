@@ -40,7 +40,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(
+    path.join(__dirname, "public", "index.html")
+  );
 });
 
 const PLANS = {
@@ -75,33 +77,25 @@ function addDays(date, days) {
   return result.toISOString();
 }
 
-/*
-========================================================
-TESTE DO SANDBOX PAGBANK
-========================================================
 
-Este endpoint NÃO usa dinheiro real.
-
-Ele utiliza somente:
-
-PAGBANK_SANDBOX_TOKEN
-
-e a API:
-
-https://sandbox.api.pagseguro.com
-*/
+/* =====================================================
+   TESTE SANDBOX PAGBANK
+   ===================================================== */
 
 app.get("/api/sandbox-test", async (req, res) => {
   try {
     if (!PAGBANK_SANDBOX_TOKEN) {
       return res.status(500).json({
         success: false,
-        message: "PAGBANK_SANDBOX_TOKEN não está configurado no Render."
+        message:
+          "PAGBANK_SANDBOX_TOKEN não está configurado no Render."
       });
     }
 
     const referenceId =
-      `BAIANO-SANDBOX-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+      `BAIANO-SANDBOX-${Date.now()}-${crypto
+        .randomUUID()
+        .slice(0, 8)}`;
 
     const expiration = new Date(
       Date.now() + 30 * 60 * 1000
@@ -112,7 +106,10 @@ app.get("/api/sandbox-test", async (req, res) => {
 
       customer: {
         name: "Cliente Teste Baiano Tips",
-        email: "teste@baianotips.com"
+        email: "teste@baianotips.com",
+
+        // CPF fictício para o Sandbox
+        tax_id: "12345678909"
       },
 
       items: [
@@ -128,7 +125,8 @@ app.get("/api/sandbox-test", async (req, res) => {
         {
           reference_id: referenceId,
 
-          description: "Teste Sandbox Baiano Tips",
+          description:
+            "Teste Sandbox Baiano Tips",
 
           amount: {
             value: 100,
@@ -146,7 +144,9 @@ app.get("/api/sandbox-test", async (req, res) => {
       ],
 
       notification_urls: BASE_URL
-        ? [`${BASE_URL}/api/pagbank/webhook`]
+        ? [
+            `${BASE_URL}/api/pagbank/webhook`
+          ]
         : []
     };
 
@@ -156,29 +156,45 @@ app.get("/api/sandbox-test", async (req, res) => {
         method: "POST",
 
         headers: {
-          Authorization: `Bearer ${PAGBANK_SANDBOX_TOKEN}`,
-          Accept: "application/json",
-          "Content-Type": "application/json"
+          Authorization:
+            `Bearer ${PAGBANK_SANDBOX_TOKEN}`,
+
+          Accept:
+            "application/json",
+
+          "Content-Type":
+            "application/json"
         },
 
-        body: JSON.stringify(orderPayload)
+        body:
+          JSON.stringify(orderPayload)
       }
     );
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
     if (!response.ok) {
-      console.error("Erro Sandbox PagBank:", data);
+      console.error(
+        "Erro Sandbox PagBank:",
+        data
+      );
 
       return res.status(response.status).json({
         success: false,
-        message: "PagBank recusou o pedido Sandbox.",
+
+        message:
+          "PagBank recusou o pedido Sandbox.",
+
         details: data
       });
     }
 
-    const orderId = data.id;
-    const charge = data.charges?.[0];
+    const orderId =
+      data.id;
+
+    const charge =
+      data.charges?.[0];
 
     return res.json({
       success: true,
@@ -199,41 +215,54 @@ app.get("/api/sandbox-test", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Erro no teste Sandbox:", error);
+    console.error(
+      "Erro no teste Sandbox:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Erro interno ao testar o Sandbox.",
-      details: error.message
+
+      message:
+        "Erro interno ao testar o Sandbox.",
+
+      details:
+        error.message
     });
   }
 });
 
-/*
-========================================================
-PAGAMENTO REAL
-========================================================
-*/
+
+/* =====================================================
+   PAGAMENTO REAL
+   ===================================================== */
 
 app.post("/api/create-payment", async (req, res) => {
   try {
-    const { name, email, plan } = req.body;
+    const {
+      name,
+      email,
+      plan
+    } = req.body;
 
     if (!name || !email || !plan) {
       return res.status(400).json({
-        error: "Nome, e-mail e plano são obrigatórios."
+        error:
+          "Nome, e-mail e plano são obrigatórios."
       });
     }
 
     if (!PLANS[plan]) {
       return res.status(400).json({
-        error: "Plano inválido."
+        error:
+          "Plano inválido."
       });
     }
 
     if (!PAGBANK_TOKEN) {
       return res.status(500).json({
-        error: "PAGBANK_TOKEN não configurado no Render."
+        error:
+          "PAGBANK_TOKEN não configurado no Render."
       });
     }
 
@@ -244,48 +273,73 @@ app.post("/api/create-payment", async (req, res) => {
       });
     }
 
-    const selectedPlan = PLANS[plan];
+    const selectedPlan =
+      PLANS[plan];
 
     const referenceId =
-      `BAIANO-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+      `BAIANO-${Date.now()}-${crypto
+        .randomUUID()
+        .slice(0, 8)}`;
 
-    const expiration = new Date(
-      Date.now() + 30 * 60 * 1000
-    ).toISOString();
+    const expiration =
+      new Date(
+        Date.now() +
+        30 * 60 * 1000
+      ).toISOString();
 
     const orderPayload = {
-      reference_id: referenceId,
+      reference_id:
+        referenceId,
 
       customer: {
-        name: name.trim(),
-        email: email.trim().toLowerCase()
+        name:
+          name.trim(),
+
+        email:
+          email
+            .trim()
+            .toLowerCase()
       },
 
       items: [
         {
-          reference_id: plan,
-          name: selectedPlan.name,
-          quantity: 1,
-          unit_amount: selectedPlan.amount
+          reference_id:
+            plan,
+
+          name:
+            selectedPlan.name,
+
+          quantity:
+            1,
+
+          unit_amount:
+            selectedPlan.amount
         }
       ],
 
       charges: [
         {
-          reference_id: referenceId,
+          reference_id:
+            referenceId,
 
-          description: selectedPlan.name,
+          description:
+            selectedPlan.name,
 
           amount: {
-            value: selectedPlan.amount,
-            currency: "BRL"
+            value:
+              selectedPlan.amount,
+
+            currency:
+              "BRL"
           },
 
           payment_method: {
-            type: "PIX",
+            type:
+              "PIX",
 
             pix: {
-              expiration_date: expiration
+              expiration_date:
+                expiration
             }
           }
         }
@@ -296,38 +350,61 @@ app.post("/api/create-payment", async (req, res) => {
       ]
     };
 
-    const response = await fetch(
-      `${PAGBANK_API}/orders`,
-      {
-        method: "POST",
+    const response =
+      await fetch(
+        `${PAGBANK_API}/orders`,
+        {
+          method:
+            "POST",
 
-        headers: {
-          Authorization: `Bearer ${PAGBANK_TOKEN}`,
-          Accept: "application/json",
-          "Content-Type": "application/json"
-        },
+          headers: {
+            Authorization:
+              `Bearer ${PAGBANK_TOKEN}`,
 
-        body: JSON.stringify(orderPayload)
-      }
-    );
+            Accept:
+              "application/json",
 
-    const data = await response.json();
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(
+              orderPayload
+            )
+        }
+      );
+
+    const data =
+      await response.json();
 
     if (!response.ok) {
-      console.error("Erro PagBank:", data);
+      console.error(
+        "Erro PagBank:",
+        data
+      );
 
-      return res.status(response.status).json({
-        error: "Erro ao criar pagamento no PagBank.",
-        details: data
+      return res.status(
+        response.status
+      ).json({
+        error:
+          "Erro ao criar pagamento no PagBank.",
+
+        details:
+          data
       });
     }
 
-    const orderId = data.id;
-    const charge = data.charges?.[0];
+    const orderId =
+      data.id;
+
+    const charge =
+      data.charges?.[0];
 
     if (!orderId || !charge) {
       return res.status(500).json({
-        error: "Resposta inesperada do PagBank."
+        error:
+          "Resposta inesperada do PagBank."
       });
     }
 
@@ -338,22 +415,26 @@ app.post("/api/create-payment", async (req, res) => {
 
     const qrLink =
       charge.links?.find(
-        link => link.rel === "QRCODE.PNG"
+        link =>
+          link.rel ===
+          "QRCODE.PNG"
       );
 
     if (qrLink?.href) {
       try {
-        const imageResponse = await fetch(
-          qrLink.href,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${PAGBANK_TOKEN}`,
+        const imageResponse =
+          await fetch(
+            qrLink.href,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${PAGBANK_TOKEN}`,
 
-              Accept: "image/png"
+                Accept:
+                  "image/png"
+              }
             }
-          }
-        );
+          );
 
         if (imageResponse.ok) {
           const imageBuffer =
@@ -388,26 +469,40 @@ app.post("/api/create-payment", async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       orderId,
+
       name.trim(),
-      email.trim().toLowerCase(),
+
+      email
+        .trim()
+        .toLowerCase(),
+
       plan,
+
       selectedPlan.amount,
-      charge.status || "WAITING",
+
+      charge.status ||
+        "WAITING",
+
       null,
-      new Date().toISOString()
+
+      new Date()
+        .toISOString()
     );
 
     res.json({
-      success: true,
+      success:
+        true,
 
       orderId,
 
-      pix: pixText,
+      pix:
+        pixText,
 
       encodedImage,
 
       status:
-        charge.status || "WAITING"
+        charge.status ||
+        "WAITING"
     });
 
   } catch (error) {
@@ -423,233 +518,297 @@ app.post("/api/create-payment", async (req, res) => {
   }
 });
 
-/*
-========================================================
-WEBHOOK PAGBANK
-========================================================
-*/
 
-app.post("/api/pagbank/webhook", async (req, res) => {
-  try {
-    const orderId =
-      req.body?.id ||
-      req.body?.order?.id;
+/* =====================================================
+   WEBHOOK PAGBANK
+   ===================================================== */
 
-    if (!orderId || !PAGBANK_TOKEN) {
-      return res.status(200).json({
-        received: true
-      });
-    }
+app.post(
+  "/api/pagbank/webhook",
+  async (req, res) => {
 
-    const response = await fetch(
-      `${PAGBANK_API}/orders/${orderId}`,
-      {
-        headers: {
-          Authorization:
-            `Bearer ${PAGBANK_TOKEN}`,
+    try {
 
-          Accept:
-            "application/json"
-        }
+      const orderId =
+        req.body?.id ||
+        req.body?.order?.id;
+
+      if (
+        !orderId ||
+        !PAGBANK_TOKEN
+      ) {
+        return res.status(200).json({
+          received:
+            true
+        });
       }
-    );
 
-    if (!response.ok) {
-      return res.status(200).json({
-        received: true
-      });
-    }
+      const response =
+        await fetch(
+          `${PAGBANK_API}/orders/${orderId}`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${PAGBANK_TOKEN}`,
 
-    const order =
-      await response.json();
-
-    const charge =
-      order.charges?.[0];
-
-    if (!charge) {
-      return res.status(200).json({
-        received: true
-      });
-    }
-
-    const payment =
-      db.prepare(`
-        SELECT *
-        FROM payments
-        WHERE order_id = ?
-      `).get(orderId);
-
-    if (!payment) {
-      return res.status(200).json({
-        received: true
-      });
-    }
-
-    let activeUntil =
-      payment.active_until;
-
-    if (charge.status === "PAID") {
-      activeUntil =
-        addDays(
-          new Date(),
-          PLANS[payment.plan]?.days || 30
+              Accept:
+                "application/json"
+            }
+          }
         );
-    }
 
-    db.prepare(`
-      UPDATE payments
-      SET status = ?,
-          active_until = ?
-      WHERE order_id = ?
-    `).run(
-      charge.status || "WAITING",
-      activeUntil,
-      orderId
-    );
+      if (!response.ok) {
+        return res.status(200).json({
+          received:
+            true
+        });
+      }
 
-    return res.status(200).json({
-      received: true
-    });
+      const order =
+        await response.json();
 
-  } catch (error) {
-    console.error(
-      "Webhook:",
-      error
-    );
+      const charge =
+        order.charges?.[0];
 
-    return res.status(200).json({
-      received: true
-    });
-  }
-});
+      if (!charge) {
+        return res.status(200).json({
+          received:
+            true
+        });
+      }
 
-/*
-========================================================
-VERIFICAR ACESSO
-========================================================
-*/
+      const payment =
+        db.prepare(`
+          SELECT *
+          FROM payments
+          WHERE order_id = ?
+        `).get(orderId);
 
-app.get("/api/access", (req, res) => {
-  try {
-    const email =
-      String(
-        req.query.email || ""
-      )
-      .trim()
-      .toLowerCase();
+      if (!payment) {
+        return res.status(200).json({
+          received:
+            true
+        });
+      }
 
-    if (!email) {
-      return res.json({
-        active: false
-      });
-    }
+      let activeUntil =
+        payment.active_until;
 
-    const payment =
+      if (
+        charge.status ===
+        "PAID"
+      ) {
+        activeUntil =
+          addDays(
+            new Date(),
+
+            PLANS[
+              payment.plan
+            ]?.days || 30
+          );
+      }
+
       db.prepare(`
-        SELECT *
-        FROM payments
-        WHERE email = ?
-        AND status = 'PAID'
-        ORDER BY active_until DESC
-        LIMIT 1
-      `).get(email);
+        UPDATE payments
+        SET status = ?,
+            active_until = ?
+        WHERE order_id = ?
+      `).run(
+        charge.status ||
+          "WAITING",
 
-    if (!payment) {
-      return res.json({
-        active: false
+        activeUntil,
+
+        orderId
+      );
+
+      return res.status(200).json({
+        received:
+          true
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Webhook:",
+        error
+      );
+
+      return res.status(200).json({
+        received:
+          true
       });
     }
+  }
+);
 
-    if (
-      !payment.active_until ||
-      new Date(payment.active_until) <= new Date()
-    ) {
-      return res.json({
-        active: false
+
+/* =====================================================
+   VERIFICAR ACESSO
+   ===================================================== */
+
+app.get(
+  "/api/access",
+  (req, res) => {
+
+    try {
+
+      const email =
+        String(
+          req.query.email ||
+          ""
+        )
+        .trim()
+        .toLowerCase();
+
+      if (!email) {
+        return res.json({
+          active:
+            false
+        });
+      }
+
+      const payment =
+        db.prepare(`
+          SELECT *
+          FROM payments
+          WHERE email = ?
+          AND status = 'PAID'
+          ORDER BY active_until DESC
+          LIMIT 1
+        `).get(email);
+
+      if (!payment) {
+        return res.json({
+          active:
+            false
+        });
+      }
+
+      if (
+        !payment.active_until ||
+        new Date(
+          payment.active_until
+        ) <= new Date()
+      ) {
+        return res.json({
+          active:
+            false
+        });
+      }
+
+      res.json({
+
+        active:
+          true,
+
+        plan:
+          payment.plan,
+
+        activeUntil:
+          payment.active_until,
+
+        invite:
+          process.env
+            .TELEGRAM_INVITE_URL ||
+          null
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Access:",
+        error
+      );
+
+      res.status(500).json({
+        active:
+          false
       });
     }
+  }
+);
+
+
+/* =====================================================
+   HEALTH
+   ===================================================== */
+
+app.get(
+  "/api/health",
+  (req, res) => {
 
     res.json({
-      active: true,
 
-      plan:
-        payment.plan,
+      online:
+        true,
 
-      activeUntil:
-        payment.active_until,
+      pixEnabled:
+        PIX_ENABLED,
 
-      invite:
-        process.env.TELEGRAM_INVITE_URL || null
-    });
+      sandboxTokenConfigured:
+        Boolean(
+          PAGBANK_SANDBOX_TOKEN
+        ),
 
-  } catch (error) {
-    console.error(
-      "Access:",
-      error
-    );
-
-    res.status(500).json({
-      active: false
+      productionTokenConfigured:
+        Boolean(
+          PAGBANK_TOKEN
+        )
     });
   }
-});
+);
 
-/*
-========================================================
-HEALTH
-========================================================
-*/
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    online: true,
+/* =====================================================
+   CONFIG TEST
+   ===================================================== */
 
-    pixEnabled:
-      PIX_ENABLED,
+app.get(
+  "/api/config-test",
+  (req, res) => {
 
-    sandboxTokenConfigured:
-      Boolean(PAGBANK_SANDBOX_TOKEN),
+    res.json({
 
-    productionTokenConfigured:
-      Boolean(PAGBANK_TOKEN)
-  });
-});
+      server:
+        "online",
 
-/*
-========================================================
-CONFIG TEST
-========================================================
-*/
+      pagbankTokenConfigured:
+        Boolean(
+          PAGBANK_TOKEN
+        ),
 
-app.get("/api/config-test", (req, res) => {
-  res.json({
-    server: "online",
+      pagbankSandboxTokenConfigured:
+        Boolean(
+          PAGBANK_SANDBOX_TOKEN
+        ),
 
-    pagbankTokenConfigured:
-      Boolean(PAGBANK_TOKEN),
+      pixEnabled:
+        PIX_ENABLED,
 
-    pagbankSandboxTokenConfigured:
-      Boolean(PAGBANK_SANDBOX_TOKEN),
+      baseUrlConfigured:
+        Boolean(
+          BASE_URL
+        ),
 
-    pixEnabled:
-      PIX_ENABLED,
+      message:
+        "Configuração carregada com sucesso."
+    });
+  }
+);
 
-    baseUrlConfigured:
-      Boolean(BASE_URL),
 
-    message:
-      "Configuração carregada com sucesso."
-  });
-});
+/* =====================================================
+   SERVIDOR
+   ===================================================== */
 
-/*
-========================================================
-SERVIDOR
-========================================================
-*/
+app.listen(
+  PORT,
+  () => {
 
-app.listen(PORT, () => {
-  console.log(
-    `Servidor online na porta ${PORT}`
-  );
-});
+    console.log(
+      `Servidor online na porta ${PORT}`
+    );
+
+  }
+);
