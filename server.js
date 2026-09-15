@@ -9,5 +9,4 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(Servidor online na porta ${PORT});
-});
+console.log(`Servidor online na porta ${PORT}`);
