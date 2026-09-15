@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Baiano Tips e Alavancagem</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #050505;
+      color: white;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      padding: 45px 10px 30px;
+    }
+
+    header h1 {
+      font-size: 42px;
+      margin: 0;
+      color: #d4af37;
+    }
+
+    header h1 span {
+      color: #39ff6a;
+    }
+
+    header p {
+      color: #bbb;
+      font-size: 18px;
+    }
+
+    .card {
+      background: #111;
+      border: 1px solid #292929;
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    .plans {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .plan {
+      padding: 20px;
+      text-align: center;
+      border: 1px solid #333;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    .plan:hover {
+      border-color: #39ff6a;
+      transform: translateY(-2px);
+    }
+
+    .plan.selected {
+      border-color: #39ff6a;
+      box-shadow: 0 0 15px rgba(57,255,106,.25);
+    }
+
+    .plan strong {
+      display: block;
+      font-size: 20px;
+      color: #39ff6a;
+      margin-bottom: 8px;
+    }
+
+    .price {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 15px;
+      margin: 8px 0;
+      border-radius: 10px;
+      border: 1px solid #333;
+      background: #080808;
+      color: white;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #39ff6a;
+      color: #041006;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      opacity: .9;
+    }
+
+    #payment {
+      display: none;
+      text-align: center;
+    }
+
+    #qr {
+      max-width: 260px;
+      width: 100%;
+      margin: 20px auto;
+      display: block;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      background: #080808;
+      color: white;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px;
+      resize: none;
+    }
+
+    .status {
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .warning {
+      color: #999;
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: center;
+      margin-top: 25px;
+    }
+
+    a {
+      color: #39ff6a;
+      font-weight: bold;
+    }
+
+    @media (max-width: 600px) {
+      header h1 {
+        font-size: 34px;
+      }
+
+      .plans {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <header>
+    <h1>BAIANO <span>TIPS</span></h1>
+
+    <p>
+      Tips e análises para apostas esportivas
+    </p>
+  </header>
+
+
+  <div class="card">
+
+    <h2>🔥 Escolha seu plano</h2>
+
+    <div class="plans">
+
+      <div class="plan" onclick="selectPlan('mensal', this)">
+        <strong>MENSAL</strong>
+        <div class="price">R$ 29,90</div>
+        <small>30 dias</small>
+      </div>
+
+      <div class="plan" onclick="selectPlan('trimestral', this)">
+        <strong>TRIMESTRAL</strong>
+        <div class="price">R$ 69,90</div>
+        <small>90 dias</small>
+      </div>
+
+      <div class="plan" onclick="selectPlan('semestral', this)">
+        <strong>SEMESTRAL</strong>
+        <div class="price">R$ 119,90</div>
+        <small>180 dias</small>
+      </div>
+
+      <div class="plan" onclick="selectPlan('anual', this)">
+        <strong>ANUAL</strong>
+        <div class="price">R$ 199,90</div>
+        <small>365 dias</small>
+      </div>
+
+    </div>
+
+    <p id="selected" class="status">
+      Escolha um plano acima.
+    </p>
+
+  </div>
+
+
+  <div class="card">
+
+    <h2>👤 Seus dados</h2>
+
+    <input
+      id="name"
+      type="text"
+      placeholder="Seu nome"
+    >
+
+    <input
+      id="email"
+      type="email"
+      placeholder="Seu e-mail"
+    >
+
+    <button onclick="createPayment()">
+      GERAR PIX
+    </button>
+
+    <p id="message" class="status"></p>
+
+  </div>
+
+
+  <div id="payment" class="card">
+
+    <h2>💰 Pagamento via Pix</h2>
+
+    <p class="status">
+      Escaneie o QR Code ou copie o código Pix.
+    </p>
+
+    <img id="qr">
+
+    <textarea
+      id="pix"
+      rows="5"
+      readonly
+    ></textarea>
+
+    <button onclick="copyPix()">
+      📋 COPIAR PIX
+    </button>
+
+    <p id="paymentStatus" class="status">
+      Aguardando confirmação do pagamento...
+    </p>
+
+  </div>
+
+
+  <div class="card">
+
+    <h2>🔐 Já pagou?</h2>
+
+    <input
+      id="accessEmail"
+      type="email"
+      placeholder="Digite o e-mail usado no pagamento"
+    >
+
+    <button onclick="checkAccess()">
+      VERIFICAR MEU ACESSO
+    </button>
+
+    <p id="accessStatus" class="status"></p>
+
+  </div>
+
+
+  <div class="warning">
+
+    🔞 Conteúdo destinado a maiores de 18 anos.<br><br>
+
+    Apostas esportivas envolvem riscos financeiros.
+    Nenhuma dica garante lucro ou resultado.
+    Aposte com responsabilidade e dentro dos limites permitidos.
+
+  </div>
+
+</div>
+
+
+<script>
+
+let selectedPlan = null;
+let currentEmail = "";
+
+
+function selectPlan(plan, element) {
+
+  selectedPlan = plan;
+
+  document
+    .querySelectorAll(".plan")
+    .forEach(p => p.classList.remove("selected"));
+
+  element.classList.add("selected");
+
+  const names = {
+    mensal: "Mensal — R$ 29,90",
+    trimestral: "Trimestral — R$ 69,90",
+    semestral: "Semestral — R$ 119,90",
+    anual: "Anual — R$ 199,90"
+  };
+
+  document.getElementById("selected").innerText =
+    "Plano selecionado: " + names[plan];
+}
+
+
+async function createPayment() {
+
+  const name =
+    document.getElementById("name").value.trim();
+
+  const email =
+    document.getElementById("email").value.trim();
+
+  const message =
+    document.getElementById("message");
+
+
+  if (!selectedPlan) {
+
+    message.innerText =
+      "⚠️ Escolha um plano.";
+
+    return;
+  }
+
+
+  if (!name || !email) {
+
+    message.innerText =
+      "⚠️ Preencha seu nome e e-mail.";
+
+    return;
+  }
+
+
+  message.innerText =
+    "⏳ Gerando seu Pix...";
+
+
+  try {
+
+    const response =
+      await fetch("/api/create-payment", {
+
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+          name,
+          email,
+          plan: selectedPlan
+        })
+
+      });
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      message.innerText =
+        data.error ||
+        "Erro ao gerar pagamento.";
+
+      return;
+    }
+
+
+    currentEmail = email;
+
+
+    document.getElementById("payment")
+      .style.display = "block";
+
+
+    document.getElementById("pix")
+      .value = data.pix;
+
+
+    document.getElementById("qr")
+      .src =
+      "data:image/png;base64," +
+      data.encodedImage;
+
+
+    message.innerText =
+      "✅ Pix gerado! Faça o pagamento pelo seu banco.";
+
+
+    checkPayment();
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    message.innerText =
+      "❌ Não foi possível gerar o Pix.";
+
+  }
+
+}
+
+
+async function copyPix() {
+
+  const pix =
+    document.getElementById("pix").value;
+
+  await navigator.clipboard.writeText(pix);
+
+  document.getElementById("paymentStatus")
+    .innerText =
+    "✅ Código Pix copiado!";
+
+}
+
+
+async function checkPayment() {
+
+  for (let i = 0; i < 60; i++) {
+
+    await new Promise(resolve =>
+      setTimeout(resolve, 5000)
+    );
+
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/access?email=" +
+          encodeURIComponent(currentEmail)
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (data.active) {
+
+        document.getElementById(
+          "paymentStatus"
+        ).innerHTML =
+          "✅ PAGAMENTO CONFIRMADO!<br><br>" +
+          "Seu acesso está liberado.";
+
+
+        if (data.invite) {
+
+          document.getElementById(
+            "paymentStatus"
+          ).innerHTML +=
+            "<br><br>" +
+            '<a href="' +
+            data.invite +
+            '" target="_blank">' +
+            "👉 ENTRAR NO TELEGRAM" +
+            "</a>";
+
+        }
+
+        return;
+
+      }
+
+    } catch (error) {
+
+      console.error(error);
+
+    }
+
+  }
+
+}
+
+
+async function checkAccess() {
+
+  const email =
+    document.getElementById(
+      "accessEmail"
+    ).value.trim();
+
+
+  if (!email) {
+
+    document.getElementById(
+      "accessStatus"
+    ).innerText =
+      "Digite seu e-mail.";
+
+    return;
+  }
+
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/access?email=" +
+        encodeURIComponent(email)
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!data.found) {
+
+      document.getElementById(
+        "accessStatus"
+      ).innerText =
+        "Nenhum pagamento encontrado.";
+
+      return;
+
+    }
+
+
+    if (!data.active) {
+
+      document.getElementById(
+        "accessStatus"
+      ).innerText =
+        "Seu acesso não está ativo.";
+
+      return;
+
+    }
+
+
+    document.getElementById(
+      "accessStatus"
+    ).innerHTML =
+      "✅ Seu acesso está ativo!" +
+      "<br><br>" +
+      '<a href="' +
+      data.invite +
+      '" target="_blank">' +
+      "👉 ENTRAR NO TELEGRAM" +
+      "</a>";
+
+  } catch (error) {
+
+    console.error(error);
+
+    document.getElementById(
+      "accessStatus"
+    ).innerText =
+      "Erro ao consultar acesso.";
+
+  }
+
+}
+
+</script>
+
+</body>
+</html>
