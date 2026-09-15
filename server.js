@@ -16,10 +16,6 @@ const PAGBANK_API = "https://api.pagseguro.com";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ===============================
-// BANCO DE DADOS
-// ===============================
-
 const db = new Database("./baiano_tips.db");
 
 db.exec(`
@@ -36,10 +32,6 @@ db.exec(`
   )
 `);
 
-// ===============================
-// CONFIGURAÇÃO
-// ===============================
-
 app.use(express.json());
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -48,29 +40,22 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// ===============================
-// PLANOS
-// ===============================
-
 const PLANS = {
   mensal: {
     name: "Plano Mensal",
     amount: 2990,
     days: 30
   },
-
   trimestral: {
     name: "Plano Trimestral",
     amount: 6990,
     days: 90
   },
-
   semestral: {
     name: "Plano Semestral",
     amount: 11990,
     days: 180
   },
-
   anual: {
     name: "Plano Anual",
     amount: 19990,
@@ -78,19 +63,15 @@ const PLANS = {
   }
 };
 
-// ===============================
-// FUNÇÃO PARA ADICIONAR DIAS
-// ===============================
-
 function addDays(date, days) {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result.toISOString();
 }
 
-// ===============================
+// ==========================================
 // CRIAR PAGAMENTO PIX
-// ===============================
+// ==========================================
 
 app.post("/api/create-payment", async (req, res) => {
   try {
@@ -114,7 +95,6 @@ app.post("/api/create-payment", async (req, res) => {
       });
     }
 
-    // PROTEÇÃO CONTRA COBRANÇAS REAIS
     if (!PIX_ENABLED) {
       return res.status(403).json({
         error: "PIX está temporariamente desativado durante a configuração."
@@ -149,7 +129,6 @@ app.post("/api/create-payment", async (req, res) => {
       charges: [
         {
           reference_id: referenceId,
-
           description: selectedPlan.name,
 
           amount: {
@@ -172,8 +151,6 @@ app.post("/api/create-payment", async (req, res) => {
       ]
     };
 
-    console.log("Enviando pedido para PagBank...");
-
     const response = await fetch(
       `${PAGBANK_API}/orders`,
       {
@@ -192,7 +169,7 @@ app.post("/api/create-payment", async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Erro retornado pelo PagBank:", data);
+      console.error("Erro PagBank:", data);
 
       return res.status(response.status).json({
         error: "Erro ao criar pagamento no PagBank.",
@@ -204,10 +181,8 @@ app.post("/api/create-payment", async (req, res) => {
     const charge = data.charges?.[0];
 
     if (!orderId || !charge) {
-      console.error("Resposta inesperada:", data);
-
       return res.status(500).json({
-        error: "O PagBank não retornou os dados esperados."
+        error: "Resposta inesperada do PagBank."
       });
     }
 
@@ -215,25 +190,18 @@ app.post("/api/create-payment", async (req, res) => {
 
     let encodedImage = "";
 
-    // ===============================
-    // PEGAR IMAGEM DO QR CODE
-    // ===============================
-
     const qrLink = charge.links?.find(
-      (link) => link.rel === "QRCODE.PNG"
+      link => link.rel === "QRCODE.PNG"
     );
 
     if (qrLink?.href) {
       try {
-        const imageResponse = await fetch(
-          qrLink.href,
-          {
-            headers: {
-              Authorization: `Bearer ${PAGBANK_TOKEN}`,
-              Accept: "image/png"
-            }
+        const imageResponse = await fetch(qrLink.href, {
+          headers: {
+            Authorization: `Bearer ${PAGBANK_TOKEN}`,
+            Accept: "image/png"
           }
-        );
+        });
 
         if (imageResponse.ok) {
           const imageBuffer = Buffer.from(
@@ -243,19 +211,12 @@ app.post("/api/create-payment", async (req, res) => {
           encodedImage =
             `data:image/png;base64,${imageBuffer.toString("base64")}`;
         }
-      } catch (imageError) {
-        console.error(
-          "Erro ao obter imagem do QR Code:",
-          imageError
-        );
+      } catch (error) {
+        console.error("Erro QR Code:", error);
       }
     }
 
-    // ===============================
-    // SALVAR PAGAMENTO
-    // ===============================
-
-    const insertPayment = db.prepare(`
+    db.prepare(`
       INSERT INTO payments
       (
         order_id,
@@ -268,9 +229,7 @@ app.post("/api/create-payment", async (req, res) => {
         created_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    insertPayment.run(
+    `).run(
       orderId,
       name.trim(),
       email.trim().toLowerCase(),
@@ -281,11 +240,7 @@ app.post("/api/create-payment", async (req, res) => {
       new Date().toISOString()
     );
 
-    console.log(
-      `Pedido criado com sucesso: ${orderId}`
-    );
-
-    return res.json({
+    res.json({
       success: true,
       orderId,
       pix: pixText,
@@ -294,20 +249,17 @@ app.post("/api/create-payment", async (req, res) => {
     });
 
   } catch (error) {
-    console.error(
-      "Erro interno ao criar pagamento:",
-      error
-    );
+    console.error("Erro interno:", error);
 
-    return res.status(500).json({
+    res.status(500).json({
       error: "Erro interno do servidor."
     });
   }
 });
 
-// ===============================
-// WEBHOOK DO PAGBANK
-// ===============================
+// ==========================================
+// WEBHOOK
+// ==========================================
 
 app.post("/api/pagbank/webhook", async (req, res) => {
   try {
@@ -315,27 +267,15 @@ app.post("/api/pagbank/webhook", async (req, res) => {
       req.body?.id ||
       req.body?.order?.id;
 
-    if (!orderId) {
+    if (!orderId || !PAGBANK_TOKEN) {
       return res.status(200).json({
         received: true
       });
     }
-
-    if (!PAGBANK_TOKEN) {
-      return res.status(200).json({
-        received: true
-      });
-    }
-
-    console.log(
-      `Webhook recebido: ${orderId}`
-    );
 
     const response = await fetch(
       `${PAGBANK_API}/orders/${orderId}`,
       {
-        method: "GET",
-
         headers: {
           Authorization: `Bearer ${PAGBANK_TOKEN}`,
           Accept: "application/json"
@@ -344,18 +284,12 @@ app.post("/api/pagbank/webhook", async (req, res) => {
     );
 
     if (!response.ok) {
-      console.error(
-        "Erro ao consultar pedido no PagBank:",
-        orderId
-      );
-
       return res.status(200).json({
         received: true
       });
     }
 
     const order = await response.json();
-
     const charge = order.charges?.[0];
 
     if (!charge) {
@@ -381,14 +315,10 @@ app.post("/api/pagbank/webhook", async (req, res) => {
     let activeUntil = payment.active_until;
 
     if (charge.status === "PAID") {
-      const plan = PLANS[payment.plan];
-
-      if (plan) {
-        activeUntil = addDays(
-          new Date(),
-          plan.days
-        );
-      }
+      activeUntil = addDays(
+        new Date(),
+        PLANS[payment.plan]?.days || 30
+      );
     }
 
     db.prepare(`
@@ -402,19 +332,12 @@ app.post("/api/pagbank/webhook", async (req, res) => {
       orderId
     );
 
-    console.log(
-      `Pagamento ${orderId}: ${charge.status}`
-    );
-
     return res.status(200).json({
       received: true
     });
 
   } catch (error) {
-    console.error(
-      "Erro no webhook:",
-      error
-    );
+    console.error("Webhook:", error);
 
     return res.status(200).json({
       received: true
@@ -422,15 +345,13 @@ app.post("/api/pagbank/webhook", async (req, res) => {
   }
 });
 
-// ===============================
+// ==========================================
 // VERIFICAR ACESSO
-// ===============================
+// ==========================================
 
 app.get("/api/access", (req, res) => {
   try {
-    const email = String(
-      req.query.email || ""
-    )
+    const email = String(req.query.email || "")
       .trim()
       .toLowerCase();
 
@@ -457,39 +378,31 @@ app.get("/api/access", (req, res) => {
       });
     }
 
-    const now = new Date();
-    const expiration =
-      new Date(payment.active_until);
-
-    if (expiration <= now) {
+    if (new Date(payment.active_until) <= new Date()) {
       return res.json({
         active: false
       });
     }
 
-    return res.json({
+    res.json({
       active: true,
       plan: payment.plan,
       activeUntil: payment.active_until,
-      invite:
-        process.env.TELEGRAM_INVITE_URL || null
+      invite: process.env.TELEGRAM_INVITE_URL || null
     });
 
   } catch (error) {
-    console.error(
-      "Erro ao verificar acesso:",
-      error
-    );
+    console.error("Access:", error);
 
-    return res.status(500).json({
+    res.status(500).json({
       active: false
     });
   }
 });
 
-// ===============================
+// ==========================================
 // STATUS
-// ===============================
+// ==========================================
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -498,12 +411,24 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// ===============================
+// ==========================================
+// TESTE DE CONFIGURAÇÃO
+// ==========================================
+
+app.get("/api/config-test", (req, res) => {
+  res.json({
+    server: "online",
+    pagbankTokenConfigured: Boolean(PAGBANK_TOKEN),
+    pixEnabled: PIX_ENABLED,
+    baseUrlConfigured: Boolean(BASE_URL),
+    message: "Configuração carregada com sucesso."
+  });
+});
+
+// ==========================================
 // SERVIDOR
-// ===============================
+// ==========================================
 
 app.listen(PORT, () => {
-  console.log(
-    `Servidor online na porta ${PORT}`
-  );
+  console.log(`Servidor online na porta ${PORT}`);
 });
