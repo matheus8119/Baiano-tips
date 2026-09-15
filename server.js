@@ -436,6 +436,55 @@ app.get("/api/health", (req, res) => {
 });
 
 // ===============================
+// TESTE SEGURO DO PAGBANK
+// ===============================
+
+app.get("/api/pagbank-test", async (req, res) => {
+  try {
+    if (!PAGBANK_TOKEN) {
+      return res.status(500).json({
+        success: false,
+        message: "PAGBANK_TOKEN não configurado."
+      });
+    }
+
+    const response = await fetch(
+      `${PAGBANK_API}/public-keys?type=webhook`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${PAGBANK_TOKEN}`,
+          Accept: "application/json"
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        message: "PagBank recusou a autenticação.",
+        details: data
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Token PagBank funcionando corretamente!",
+      authenticated: true
+    });
+
+  } catch (error) {
+    console.error("Erro no teste PagBank:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao conectar com o PagBank."
+    });
+  }
+});
+// ===============================
 // SERVIDOR
 // ===============================
 
