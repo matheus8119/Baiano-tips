@@ -272,29 +272,6 @@ app.post("/api/asaas/webhook", async (req, res) => {
 });
 
 async function configurarTelegram() {
-  if (!process.env.BASE_URL) {
-    console.log("BASE_URL ainda não configurada.");
-    return;
-  }
-
-  const url =
-    https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setWebhook;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      url: ${process.env.BASE_URL}/api/telegram/webhook
-    })
-  });
-
-  const result = await response.json();
-
-  console.log("Webhook Telegram:", result);
-}
-
-app.listen(PORT, () => {
+ app.listen(PORT, () => {
   console.log(Baiano Tips online na porta ${PORT});
 });
