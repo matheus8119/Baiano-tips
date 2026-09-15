@@ -295,12 +295,6 @@ async function configurarTelegram() {
   console.log("Webhook Telegram:", result);
 }
 
-app.listen(PORT, async () => {
-
-  console.log(
-    Baiano Tips online na porta ${PORT}
-  );
-
-  await configurarTelegram();
-
+app.listen(PORT, () => {
+  console.log(Baiano Tips online na porta ${PORT});
 });
