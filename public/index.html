@@ -2,171 +2,354 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
   <title>Baiano Tips e Alavancagem</title>
 
   <style>
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #050505;
-      color: white;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(
+          circle at top,
+          #1b1b1b 0%,
+          #090909 45%,
+          #000000 100%
+        );
+      color: #ffffff;
+      min-height: 100vh;
     }
 
     .container {
+      width: 100%;
       max-width: 900px;
       margin: auto;
-      padding: 20px;
+      padding: 25px 15px 50px;
     }
 
-    header {
+    .header {
       text-align: center;
-      padding: 45px 10px 30px;
+      padding: 25px 10px;
     }
 
-    header h1 {
-      font-size: 42px;
-      margin: 0;
-      color: #d4af37;
+    .logo {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #00ff88;
+      text-transform: uppercase;
+      text-shadow: 0 0 18px rgba(0,255,136,.35);
     }
 
-    header h1 span {
-      color: #39ff6a;
+    .subtitle {
+      margin-top: 8px;
+      color: #cfcfcf;
+      font-size: 16px;
     }
 
-    header p {
-      color: #bbb;
-      font-size: 18px;
+    .badge {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 8px 15px;
+      border-radius: 30px;
+      background: rgba(0,255,136,.1);
+      border: 1px solid rgba(0,255,136,.35);
+      color: #00ff88;
+      font-size: 13px;
+      font-weight: bold;
     }
 
     .card {
-      background: #111;
+      background: rgba(20,20,20,.95);
       border: 1px solid #292929;
       border-radius: 18px;
       padding: 22px;
-      margin-bottom: 20px;
+      margin-top: 20px;
+      box-shadow: 0 15px 40px rgba(0,0,0,.35);
+    }
+
+    .card h2 {
+      font-size: 22px;
+      margin-bottom: 18px;
     }
 
     .plans {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
     .plan {
-      padding: 20px;
-      text-align: center;
-      border: 1px solid #333;
-      border-radius: 15px;
+      position: relative;
       cursor: pointer;
+      background: #111;
+      border: 2px solid #292929;
+      border-radius: 15px;
+      padding: 18px;
       transition: .2s;
     }
 
     .plan:hover {
-      border-color: #39ff6a;
+      border-color: #00ff88;
       transform: translateY(-2px);
     }
 
     .plan.selected {
-      border-color: #39ff6a;
-      box-shadow: 0 0 15px rgba(57,255,106,.25);
+      border-color: #00ff88;
+      background: rgba(0,255,136,.08);
+      box-shadow:
+        0 0 20px rgba(0,255,136,.12);
     }
 
-    .plan strong {
+    .plan input {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .plan-name {
+      font-weight: bold;
+      font-size: 17px;
+    }
+
+    .plan-price {
+      color: #00ff88;
+      font-size: 26px;
+      font-weight: 900;
+      margin-top: 8px;
+    }
+
+    .plan-days {
+      color: #aaa;
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .popular {
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: #00ff88;
+      color: #000;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 5px 9px;
+      border-radius: 20px;
+    }
+
+    label {
       display: block;
-      font-size: 20px;
-      color: #39ff6a;
+      color: #ddd;
+      font-size: 14px;
+      font-weight: bold;
+      margin: 17px 0 7px;
+    }
+
+    input[type="text"],
+    input[type="email"] {
+      width: 100%;
+      padding: 14px;
+      background: #0a0a0a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus {
+      border-color: #00ff88;
+    }
+
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 22px;
+      background: #00ff88;
+      color: #000;
+      font-size: 17px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    .btn:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .message {
+      display: none;
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.error {
+      background: rgba(255,60,60,.1);
+      border: 1px solid rgba(255,60,60,.3);
+      color: #ff8d8d;
+    }
+
+    .message.success {
+      background: rgba(0,255,136,.08);
+      border: 1px solid rgba(0,255,136,.3);
+      color: #00ff88;
+    }
+
+    .pix-box {
+      display: none;
+      margin-top: 25px;
+      text-align: center;
+      padding-top: 25px;
+      border-top: 1px solid #292929;
+    }
+
+    .pix-box.show {
+      display: block;
+    }
+
+    .pix-box h3 {
+      font-size: 22px;
       margin-bottom: 8px;
     }
 
-    .price {
-      font-size: 24px;
-      font-weight: bold;
+    .pix-box p {
+      color: #aaa;
+      font-size: 14px;
+      margin-bottom: 18px;
     }
 
-    input {
-      width: 100%;
-      padding: 15px;
-      margin: 8px 0;
-      border-radius: 10px;
-      border: 1px solid #333;
-      background: #080808;
-      color: white;
-      font-size: 16px;
-    }
-
-    button {
-      width: 100%;
-      padding: 16px;
-      border: none;
-      border-radius: 10px;
-      background: #39ff6a;
-      color: #041006;
-      font-weight: bold;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-
-    button:hover {
-      opacity: .9;
-    }
-
-    #payment {
-      display: none;
-      text-align: center;
-    }
-
-    #qr {
-      max-width: 260px;
-      width: 100%;
-      margin: 20px auto;
-      display: block;
+    #qrCode {
+      width: 250px;
+      max-width: 100%;
       background: white;
       padding: 10px;
-      border-radius: 10px;
+      border-radius: 12px;
+      margin: auto;
     }
 
-    textarea {
-      width: 100%;
+    .pix-copy {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .pix-copy textarea {
+      flex: 1;
+      min-height: 90px;
+      resize: none;
       background: #080808;
-      color: white;
       border: 1px solid #333;
       border-radius: 10px;
-      padding: 12px;
-      resize: none;
+      color: #ddd;
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .copy-btn {
+      width: 110px;
+      border: none;
+      border-radius: 10px;
+      background: #00ff88;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
     }
 
     .status {
-      color: #aaa;
-      line-height: 1.5;
+      margin-top: 18px;
+      color: #ddd;
+      font-size: 14px;
     }
 
-    .warning {
-      color: #999;
-      font-size: 13px;
-      line-height: 1.5;
-      text-align: center;
+    .access {
+      display: none;
       margin-top: 25px;
+      padding: 20px;
+      text-align: center;
+      background: rgba(0,255,136,.08);
+      border: 1px solid rgba(0,255,136,.3);
+      border-radius: 15px;
     }
 
-    a {
-      color: #39ff6a;
+    .access.show {
+      display: block;
+    }
+
+    .access h3 {
+      color: #00ff88;
+      font-size: 21px;
+      margin-bottom: 8px;
+    }
+
+    .telegram-btn {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 13px 20px;
+      border-radius: 10px;
+      background: #229ed9;
+      color: white;
+      text-decoration: none;
       font-weight: bold;
     }
 
-    @media (max-width: 600px) {
-      header h1 {
-        font-size: 34px;
-      }
+    .legal {
+      text-align: center;
+      color: #777;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-top: 25px;
+    }
 
+    .footer {
+      text-align: center;
+      color: #555;
+      font-size: 12px;
+      margin-top: 30px;
+    }
+
+    @media (max-width: 600px) {
       .plans {
         grid-template-columns: 1fr;
+      }
+
+      .logo {
+        font-size: 30px;
+      }
+
+      .pix-copy {
+        flex-direction: column;
+      }
+
+      .copy-btn {
+        width: 100%;
+        padding: 13px;
       }
     }
   </style>
@@ -174,427 +357,989 @@
 
 <body>
 
-<div class="container">
+  <div class="container">
 
-  <header>
-    <h1>BAIANO <span>TIPS</span></h1>
+    <header class="header">
 
-    <p>
-      Tips e análises para apostas esportivas
-    </p>
-  </header>
-
-
-  <div class="card">
-
-    <h2>🔥 Escolha seu plano</h2>
-
-    <div class="plans">
-
-      <div class="plan" onclick="selectPlan('mensal', this)">
-        <strong>MENSAL</strong>
-        <div class="price">R$ 29,90</div>
-        <small>30 dias</small>
+      <div class="logo">
+        BAIANO TIPS
       </div>
 
-      <div class="plan" onclick="selectPlan('trimestral', this)">
-        <strong>TRIMESTRAL</strong>
-        <div class="price">R$ 69,90</div>
-        <small>90 dias</small>
+      <div class="subtitle">
+        Tips e Alavancagem
       </div>
 
-      <div class="plan" onclick="selectPlan('semestral', this)">
-        <strong>SEMESTRAL</strong>
-        <div class="price">R$ 119,90</div>
-        <small>180 dias</small>
+      <div class="badge">
+        🔥 ACESSO EXCLUSIVO
       </div>
 
-      <div class="plan" onclick="selectPlan('anual', this)">
-        <strong>ANUAL</strong>
-        <div class="price">R$ 199,90</div>
-        <small>365 dias</small>
+    </header>
+
+
+    <section class="card">
+
+      <h2>
+        Escolha seu plano
+      </h2>
+
+      <div class="plans">
+
+        <label class="plan selected">
+
+          <input
+            type="radio"
+            name="plan"
+            value="mensal"
+            checked
+          >
+
+          <div class="plan-name">
+            Plano Mensal
+          </div>
+
+          <div class="plan-price">
+            R$ 29,90
+          </div>
+
+          <div class="plan-days">
+            30 dias de acesso
+          </div>
+
+        </label>
+
+
+        <label class="plan">
+
+          <input
+            type="radio"
+            name="plan"
+            value="trimestral"
+          >
+
+          <div class="plan-name">
+            Plano Trimestral
+          </div>
+
+          <div class="plan-price">
+            R$ 69,90
+          </div>
+
+          <div class="plan-days">
+            90 dias de acesso
+          </div>
+
+        </label>
+
+
+        <label class="plan">
+
+          <input
+            type="radio"
+            name="plan"
+            value="semestral"
+          >
+
+          <div class="plan-name">
+            Plano Semestral
+          </div>
+
+          <div class="plan-price">
+            R$ 119,90
+          </div>
+
+          <div class="plan-days">
+            180 dias de acesso
+          </div>
+
+        </label>
+
+
+        <label class="plan">
+
+          <input
+            type="radio"
+            name="plan"
+            value="anual"
+          >
+
+          <div class="popular">
+            MELHOR VALOR
+          </div>
+
+          <div class="plan-name">
+            Plano Anual
+          </div>
+
+          <div class="plan-price">
+            R$ 199,90
+          </div>
+
+          <div class="plan-days">
+            365 dias de acesso
+          </div>
+
+        </label>
+
       </div>
+
+
+      <label for="name">
+        Nome completo
+      </label>
+
+      <input
+        type="text"
+        id="name"
+        placeholder="Digite seu nome completo"
+        autocomplete="name"
+      >
+
+
+      <label for="cpf">
+        CPF
+      </label>
+
+      <input
+        type="text"
+        id="cpf"
+        placeholder="000.000.000-00"
+        maxlength="14"
+        inputmode="numeric"
+        autocomplete="off"
+      >
+
+
+      <label for="email">
+        E-mail
+      </label>
+
+      <input
+        type="email"
+        id="email"
+        placeholder="seuemail@gmail.com"
+        autocomplete="email"
+      >
+
+
+      <button
+        class="btn"
+        id="generateBtn"
+      >
+        GERAR PIX
+      </button>
+
+
+      <div
+        class="message"
+        id="message"
+      ></div>
+
+
+      <div
+        class="pix-box"
+        id="pixBox"
+      >
+
+        <h3>
+          PIX gerado!
+        </h3>
+
+        <p>
+          Escaneie o QR Code ou copie o código PIX.
+        </p>
+
+
+        <img
+          id="qrCode"
+          alt="QR Code PIX"
+        >
+
+
+        <div class="pix-copy">
+
+          <textarea
+            id="pixCode"
+            readonly
+          ></textarea>
+
+          <button
+            class="copy-btn"
+            id="copyBtn"
+          >
+            COPIAR PIX
+          </button>
+
+        </div>
+
+
+        <div
+          class="status"
+          id="paymentStatus"
+        >
+          Aguardando pagamento...
+        </div>
+
+      </div>
+
+
+      <div
+        class="access"
+        id="accessBox"
+      >
+
+        <h3>
+          ✅ Pagamento confirmado!
+        </h3>
+
+        <p>
+          Seu acesso foi liberado.
+        </p>
+
+        <a
+          class="telegram-btn"
+          id="telegramBtn"
+          href="#"
+          target="_blank"
+          rel="noopener"
+        >
+          ENTRAR NO TELEGRAM
+        </a>
+
+      </div>
+
+    </section>
+
+
+    <section class="card">
+
+      <h2>
+        Já sou assinante
+      </h2>
+
+      <p
+        style="
+          color:#aaa;
+          font-size:14px;
+          margin-bottom:15px;
+        "
+      >
+        Digite seu e-mail para verificar seu acesso.
+      </p>
+
+      <input
+        type="email"
+        id="accessEmail"
+        placeholder="Digite o e-mail usado na compra"
+      >
+
+      <button
+        class="btn"
+        id="checkAccessBtn"
+      >
+        VERIFICAR MEU ACESSO
+      </button>
+
+      <div
+        class="message"
+        id="accessMessage"
+      ></div>
+
+    </section>
+
+
+    <div class="legal">
+
+      🔞 Conteúdo destinado exclusivamente a maiores de 18 anos.
+      <br>
+
+      Aposte com responsabilidade. Não existe garantia de lucro
+      em apostas esportivas.
 
     </div>
 
-    <p id="selected" class="status">
-      Escolha um plano acima.
-    </p>
+
+    <div class="footer">
+      © 2026 Baiano Tips
+    </div>
 
   </div>
 
 
-  <div class="card">
+  <script>
 
-    <h2>👤 Seus dados</h2>
+    const planElements =
+      document.querySelectorAll(".plan");
 
-    <input
-      id="name"
-      type="text"
-      placeholder="Seu nome"
-    >
 
-    <input
-      id="email"
-      type="email"
-      placeholder="Seu e-mail"
-    >
+    const generateBtn =
+      document.getElementById("generateBtn");
 
-    <button onclick="createPayment()">
-      GERAR PIX
-    </button>
 
-    <p id="message" class="status"></p>
+    const message =
+      document.getElementById("message");
 
-  </div>
 
+    const pixBox =
+      document.getElementById("pixBox");
 
-  <div id="payment" class="card">
 
-    <h2>💰 Pagamento via Pix</h2>
+    const qrCode =
+      document.getElementById("qrCode");
 
-    <p class="status">
-      Escaneie o QR Code ou copie o código Pix.
-    </p>
 
-    <img id="qr">
+    const pixCode =
+      document.getElementById("pixCode");
 
-    <textarea
-      id="pix"
-      rows="5"
-      readonly
-    ></textarea>
 
-    <button onclick="copyPix()">
-      📋 COPIAR PIX
-    </button>
+    const copyBtn =
+      document.getElementById("copyBtn");
 
-    <p id="paymentStatus" class="status">
-      Aguardando confirmação do pagamento...
-    </p>
 
-  </div>
+    const paymentStatus =
+      document.getElementById("paymentStatus");
 
 
-  <div class="card">
+    const accessBox =
+      document.getElementById("accessBox");
 
-    <h2>🔐 Já pagou?</h2>
 
-    <input
-      id="accessEmail"
-      type="email"
-      placeholder="Digite o e-mail usado no pagamento"
-    >
+    const telegramBtn =
+      document.getElementById("telegramBtn");
 
-    <button onclick="checkAccess()">
-      VERIFICAR MEU ACESSO
-    </button>
 
-    <p id="accessStatus" class="status"></p>
+    const cpfInput =
+      document.getElementById("cpf");
 
-  </div>
 
+    const accessEmail =
+      document.getElementById("accessEmail");
 
-  <div class="warning">
 
-    🔞 Conteúdo destinado a maiores de 18 anos.<br><br>
-
-    Apostas esportivas envolvem riscos financeiros.
-    Nenhuma dica garante lucro ou resultado.
-    Aposte com responsabilidade e dentro dos limites permitidos.
-
-  </div>
-
-</div>
-
-
-<script>
-
-let selectedPlan = null;
-let currentEmail = "";
-
-
-function selectPlan(plan, element) {
-
-  selectedPlan = plan;
-
-  document
-    .querySelectorAll(".plan")
-    .forEach(p => p.classList.remove("selected"));
-
-  element.classList.add("selected");
-
-  const names = {
-    mensal: "Mensal — R$ 29,90",
-    trimestral: "Trimestral — R$ 69,90",
-    semestral: "Semestral — R$ 119,90",
-    anual: "Anual — R$ 199,90"
-  };
-
-  document.getElementById("selected").innerText =
-    "Plano selecionado: " + names[plan];
-}
-
-
-async function createPayment() {
-
-  const name =
-    document.getElementById("name").value.trim();
-
-  const email =
-    document.getElementById("email").value.trim();
-
-  const message =
-    document.getElementById("message");
-
-
-  if (!selectedPlan) {
-
-    message.innerText =
-      "⚠️ Escolha um plano.";
-
-    return;
-  }
-
-
-  if (!name || !email) {
-
-    message.innerText =
-      "⚠️ Preencha seu nome e e-mail.";
-
-    return;
-  }
-
-
-  message.innerText =
-    "⏳ Gerando seu Pix...";
-
-
-  try {
-
-    const response =
-      await fetch("/api/create-payment", {
-
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          name,
-          email,
-          plan: selectedPlan
-        })
-
-      });
-
-
-    const data =
-      await response.json();
-
-
-    if (!response.ok) {
-
-      message.innerText =
-        data.error ||
-        "Erro ao gerar pagamento.";
-
-      return;
-    }
-
-
-    currentEmail = email;
-
-
-    document.getElementById("payment")
-      .style.display = "block";
-
-
-    document.getElementById("pix")
-      .value = data.pix;
-
-
-    document.getElementById("qr")
-      .src =
-      "data:image/png;base64," +
-      data.encodedImage;
-
-
-    message.innerText =
-      "✅ Pix gerado! Faça o pagamento pelo seu banco.";
-
-
-    checkPayment();
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    message.innerText =
-      "❌ Não foi possível gerar o Pix.";
-
-  }
-
-}
-
-
-async function copyPix() {
-
-  const pix =
-    document.getElementById("pix").value;
-
-  await navigator.clipboard.writeText(pix);
-
-  document.getElementById("paymentStatus")
-    .innerText =
-    "✅ Código Pix copiado!";
-
-}
-
-
-async function checkPayment() {
-
-  for (let i = 0; i < 60; i++) {
-
-    await new Promise(resolve =>
-      setTimeout(resolve, 5000)
-    );
-
-
-    try {
-
-      const response =
-        await fetch(
-          "/api/access?email=" +
-          encodeURIComponent(currentEmail)
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (data.active) {
-
-        document.getElementById(
-          "paymentStatus"
-        ).innerHTML =
-          "✅ PAGAMENTO CONFIRMADO!<br><br>" +
-          "Seu acesso está liberado.";
-
-
-        if (data.invite) {
-
-          document.getElementById(
-            "paymentStatus"
-          ).innerHTML +=
-            "<br><br>" +
-            '<a href="' +
-            data.invite +
-            '" target="_blank">' +
-            "👉 ENTRAR NO TELEGRAM" +
-            "</a>";
-
-        }
-
-        return;
-
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-    }
-
-  }
-
-}
-
-
-async function checkAccess() {
-
-  const email =
-    document.getElementById(
-      "accessEmail"
-    ).value.trim();
-
-
-  if (!email) {
-
-    document.getElementById(
-      "accessStatus"
-    ).innerText =
-      "Digite seu e-mail.";
-
-    return;
-  }
-
-
-  try {
-
-    const response =
-      await fetch(
-        "/api/access?email=" +
-        encodeURIComponent(email)
+    const checkAccessBtn =
+      document.getElementById(
+        "checkAccessBtn"
       );
 
 
-    const data =
-      await response.json();
-
-
-    if (!data.found) {
-
+    const accessMessage =
       document.getElementById(
-        "accessStatus"
-      ).innerText =
-        "Nenhum pagamento encontrado.";
+        "accessMessage"
+      );
 
-      return;
+
+    let currentOrderId = null;
+
+    let statusTimer = null;
+
+
+    function showMessage(
+      element,
+      text,
+      type
+    ) {
+
+      element.textContent = text;
+
+      element.className =
+        `message show ${type}`;
 
     }
 
 
-    if (!data.active) {
+    function cleanCPF(value) {
 
-      document.getElementById(
-        "accessStatus"
-      ).innerText =
-        "Seu acesso não está ativo.";
-
-      return;
+      return value
+        .replace(/\D/g, "")
+        .slice(0, 11);
 
     }
 
 
-    document.getElementById(
-      "accessStatus"
-    ).innerHTML =
-      "✅ Seu acesso está ativo!" +
-      "<br><br>" +
-      '<a href="' +
-      data.invite +
-      '" target="_blank">' +
-      "👉 ENTRAR NO TELEGRAM" +
-      "</a>";
+    function formatCPF(value) {
 
-  } catch (error) {
+      value =
+        cleanCPF(value);
 
-    console.error(error);
+      if (value.length > 9) {
 
-    document.getElementById(
-      "accessStatus"
-    ).innerText =
-      "Erro ao consultar acesso.";
+        return value.replace(
+          /(\d{3})(\d{3})(\d{3})(\d{2})/,
+          "$1.$2.$3-$4"
+        );
 
-  }
+      }
 
-}
+      if (value.length > 6) {
 
-</script>
+        return value.replace(
+          /(\d{3})(\d{3})(\d+)/,
+          "$1.$2.$3"
+        );
+
+      }
+
+      if (value.length > 3) {
+
+        return value.replace(
+          /(\d{3})(\d+)/,
+          "$1.$2"
+        );
+
+      }
+
+      return value;
+    }
+
+
+    cpfInput.addEventListener(
+      "input",
+      () => {
+
+        cpfInput.value =
+          formatCPF(
+            cpfInput.value
+          );
+
+      }
+    );
+
+
+    planElements.forEach(
+      plan => {
+
+        plan.addEventListener(
+          "click",
+          () => {
+
+            planElements.forEach(
+              item =>
+                item.classList.remove(
+                  "selected"
+                )
+            );
+
+            plan.classList.add(
+              "selected"
+            );
+
+            const radio =
+              plan.querySelector(
+                "input"
+              );
+
+            radio.checked = true;
+
+          }
+        );
+
+      }
+    );
+
+
+    function validateCPF(cpf) {
+
+      cpf =
+        cleanCPF(cpf);
+
+      if (cpf.length !== 11) {
+        return false;
+      }
+
+      if (
+        /^(\d)\1{10}$/.test(cpf)
+      ) {
+        return false;
+      }
+
+      let sum = 0;
+
+      for (
+        let i = 0;
+        i < 9;
+        i++
+      ) {
+        sum +=
+          Number(cpf[i]) *
+          (10 - i);
+      }
+
+      let digit =
+        (sum * 10) % 11;
+
+      if (digit === 10) {
+        digit = 0;
+      }
+
+      if (
+        digit !==
+        Number(cpf[9])
+      ) {
+        return false;
+      }
+
+      sum = 0;
+
+      for (
+        let i = 0;
+        i < 10;
+        i++
+      ) {
+        sum +=
+          Number(cpf[i]) *
+          (11 - i);
+      }
+
+      digit =
+        (sum * 10) % 11;
+
+      if (digit === 10) {
+        digit = 0;
+      }
+
+      return (
+        digit ===
+        Number(cpf[10])
+      );
+
+    }
+
+
+    generateBtn.addEventListener(
+      "click",
+      async () => {
+
+        const name =
+          document
+            .getElementById("name")
+            .value
+            .trim();
+
+
+        const cpf =
+          cleanCPF(
+            cpfInput.value
+          );
+
+
+        const email =
+          document
+            .getElementById("email")
+            .value
+            .trim()
+            .toLowerCase();
+
+
+        const selectedPlan =
+          document.querySelector(
+            'input[name="plan"]:checked'
+          );
+
+
+        if (!name) {
+
+          showMessage(
+            message,
+            "Digite seu nome completo.",
+            "error"
+          );
+
+          return;
+        }
+
+
+        if (
+          !validateCPF(cpf)
+        ) {
+
+          showMessage(
+            message,
+            "Digite um CPF válido.",
+            "error"
+          );
+
+          return;
+        }
+
+
+        if (!email) {
+
+          showMessage(
+            message,
+            "Digite seu e-mail.",
+            "error"
+          );
+
+          return;
+        }
+
+
+        if (!selectedPlan) {
+
+          showMessage(
+            message,
+            "Escolha um plano.",
+            "error"
+          );
+
+          return;
+        }
+
+
+        generateBtn.disabled =
+          true;
+
+        generateBtn.textContent =
+          "GERANDO PIX...";
+
+
+        pixBox.classList.remove(
+          "show"
+        );
+
+        accessBox.classList.remove(
+          "show"
+        );
+
+
+        try {
+
+          const response =
+            await fetch(
+              "/api/create-payment",
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
+
+                body:
+                  JSON.stringify({
+
+                    name,
+
+                    cpf,
+
+                    email,
+
+                    plan:
+                      selectedPlan.value
+
+                  })
+              }
+            );
+
+
+          const data =
+            await response.json();
+
+
+          if (!response.ok) {
+
+            throw new Error(
+              data.error ||
+              "Não foi possível gerar o PIX."
+            );
+
+          }
+
+
+          currentOrderId =
+            data.orderId;
+
+
+          pixCode.value =
+            data.pix || "";
+
+
+          if (
+            data.encodedImage
+          ) {
+
+            qrCode.src =
+              data.encodedImage;
+
+          } else if (
+            data.pix
+          ) {
+
+            qrCode.src =
+              "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
+              encodeURIComponent(
+                data.pix
+              );
+
+          }
+
+
+          pixBox.classList.add(
+            "show"
+          );
+
+
+          showMessage(
+            message,
+            "PIX gerado com sucesso!",
+            "success"
+          );
+
+
+          paymentStatus.textContent =
+            "Aguardando pagamento...";
+
+
+          startPaymentCheck(
+            email
+          );
+
+        } catch (error) {
+
+          showMessage(
+            message,
+            error.message ||
+            "Erro ao gerar PIX.",
+            "error"
+          );
+
+        } finally {
+
+          generateBtn.disabled =
+            false;
+
+          generateBtn.textContent =
+            "GERAR PIX";
+
+        }
+
+      }
+    );
+
+
+    copyBtn.addEventListener(
+      "click",
+      async () => {
+
+        if (!pixCode.value) {
+          return;
+        }
+
+        try {
+
+          await navigator.clipboard.writeText(
+            pixCode.value
+          );
+
+          copyBtn.textContent =
+            "COPIADO!";
+
+          setTimeout(
+            () => {
+
+              copyBtn.textContent =
+                "COPIAR PIX";
+
+            },
+            2000
+          );
+
+        } catch {
+
+          pixCode.select();
+
+          document.execCommand(
+            "copy"
+          );
+
+          copyBtn.textContent =
+            "COPIADO!";
+
+        }
+
+      }
+    );
+
+
+    function startPaymentCheck(
+      email
+    ) {
+
+      if (statusTimer) {
+
+        clearInterval(
+          statusTimer
+        );
+
+      }
+
+
+      statusTimer =
+        setInterval(
+          async () => {
+
+            try {
+
+              const response =
+                await fetch(
+                  "/api/access?email=" +
+                  encodeURIComponent(
+                    email
+                  )
+                );
+
+
+              const data =
+                await response.json();
+
+
+              if (
+                data.active
+              ) {
+
+                clearInterval(
+                  statusTimer
+                );
+
+
+                paymentStatus.textContent =
+                  "Pagamento confirmado!";
+
+
+                accessBox.classList.add(
+                  "show"
+                );
+
+
+                if (
+                  data.invite
+                ) {
+
+                  telegramBtn.href =
+                    data.invite;
+
+                }
+
+              }
+
+            } catch {
+
+              // Continua tentando.
+
+            }
+
+          },
+          5000
+        );
+
+    }
+
+
+    checkAccessBtn.addEventListener(
+      "click",
+      async () => {
+
+        const email =
+          accessEmail.value
+            .trim()
+            .toLowerCase();
+
+
+        if (!email) {
+
+          showMessage(
+            accessMessage,
+            "Digite seu e-mail.",
+            "error"
+          );
+
+          return;
+        }
+
+
+        checkAccessBtn.disabled =
+          true;
+
+        checkAccessBtn.textContent =
+          "VERIFICANDO...";
+
+
+        try {
+
+          const response =
+            await fetch(
+              "/api/access?email=" +
+              encodeURIComponent(
+                email
+              )
+            );
+
+
+          const data =
+            await response.json();
+
+
+          if (
+            data.active
+          ) {
+
+            showMessage(
+              accessMessage,
+              "Seu acesso está ativo!",
+              "success"
+            );
+
+
+            accessBox.classList.add(
+              "show"
+            );
+
+
+            if (
+              data.invite
+            ) {
+
+              telegramBtn.href =
+                data.invite;
+
+            }
+
+          } else {
+
+            accessBox.classList.remove(
+              "show"
+            );
+
+
+            showMessage(
+              accessMessage,
+              "Não encontramos um acesso ativo para este e-mail.",
+              "error"
+            );
+
+          }
+
+        } catch {
+
+          showMessage(
+            accessMessage,
+            "Erro ao verificar o acesso.",
+            "error"
+          );
+
+        } finally {
+
+          checkAccessBtn.disabled =
+            false;
+
+          checkAccessBtn.textContent =
+            "VERIFICAR MEU ACESSO";
+
+        }
+
+      }
+    );
+
+  </script>
 
 </body>
 </html>
