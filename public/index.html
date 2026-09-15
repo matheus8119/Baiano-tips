@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Baiano Tips</title>
 
   <style>
@@ -14,15 +13,15 @@
     body {
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
-      background: #07111f;
-      color: #ffffff;
+      background: #0b0b0b;
+      color: #fff;
     }
 
     .container {
       width: 100%;
-      max-width: 1100px;
-      margin: auto;
-      padding: 30px 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 25px 15px 50px;
     }
 
     .header {
@@ -34,201 +33,210 @@
       margin: 0;
       font-size: 42px;
       font-weight: 900;
-    }
-
-    .header h2 {
-      margin: 8px 0 0;
-      color: #00ff88;
-      font-size: 22px;
+      color: #00ff66;
     }
 
     .header p {
-      color: #aeb8c7;
-      margin-top: 10px;
+      margin-top: 8px;
+      color: #aaa;
+      font-size: 17px;
     }
 
     .plans {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      margin-bottom: 30px;
+      gap: 12px;
+      margin-bottom: 25px;
     }
 
     .plan {
-      background: #101d30;
-      border: 1px solid #24344c;
-      border-radius: 15px;
-      padding: 22px 15px;
+      background: #151515;
+      border: 1px solid #292929;
+      border-radius: 12px;
+      padding: 18px 10px;
       text-align: center;
       cursor: pointer;
       transition: 0.2s;
     }
 
     .plan:hover {
-      transform: translateY(-3px);
-      border-color: #00ff88;
+      border-color: #00ff66;
+      transform: translateY(-2px);
     }
 
     .plan.selected {
-      border: 2px solid #00ff88;
-      box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
+      border: 2px solid #00ff66;
+      box-shadow: 0 0 15px rgba(0,255,102,0.15);
     }
 
     .plan h3 {
-      margin: 0 0 12px;
+      margin: 0 0 10px;
+      font-size: 17px;
     }
 
     .price {
-      font-size: 27px;
+      color: #00ff66;
+      font-size: 22px;
       font-weight: bold;
-      color: #00ff88;
     }
 
     .days {
-      color: #aeb8c7;
-      margin-top: 7px;
+      color: #888;
+      font-size: 13px;
+      margin-top: 5px;
     }
 
     .card {
-      max-width: 600px;
-      margin: auto;
-      background: #101d30;
-      border: 1px solid #24344c;
-      border-radius: 18px;
+      background: #151515;
+      border-radius: 15px;
       padding: 25px;
+      border: 1px solid #252525;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 22px;
     }
 
     label {
       display: block;
-      margin-top: 15px;
-      margin-bottom: 7px;
-      color: #dbe3ef;
-      font-weight: bold;
+      margin: 14px 0 6px;
+      color: #ccc;
+      font-size: 14px;
     }
 
     input {
       width: 100%;
       padding: 14px;
-      border-radius: 10px;
-      border: 1px solid #33445e;
-      background: #081321;
-      color: white;
-      outline: none;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #0d0d0d;
+      color: #fff;
       font-size: 16px;
+      outline: none;
     }
 
     input:focus {
-      border-color: #00ff88;
+      border-color: #00ff66;
     }
 
     button {
       width: 100%;
-      margin-top: 20px;
-      padding: 16px;
-      border: none;
-      border-radius: 10px;
-      background: #00ff88;
-      color: #06130d;
-      font-size: 17px;
+      border: 0;
+      border-radius: 9px;
+      padding: 15px;
+      margin-top: 18px;
+      background: #00ff66;
+      color: #000;
       font-weight: 900;
+      font-size: 16px;
       cursor: pointer;
     }
 
     button:hover {
-      opacity: 0.9;
+      filter: brightness(1.08);
     }
 
     button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .status {
+      display: none;
+      padding: 13px;
+      border-radius: 8px;
+      margin-top: 15px;
+      background: #202020;
+      color: #ddd;
+      line-height: 1.5;
     }
 
     .pix-box {
       display: none;
-      margin-top: 25px;
       text-align: center;
-      padding: 20px;
-      background: #081321;
-      border-radius: 15px;
+      margin-top: 25px;
+      padding-top: 25px;
+      border-top: 1px solid #292929;
     }
 
-    .pix-box img {
-      width: 260px;
-      max-width: 100%;
-      background: white;
+    .pix-box h2 {
+      color: #00ff66;
+    }
+
+    .qr-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 20px auto;
+      min-height: 220px;
+    }
+
+    #qrCodeImage {
+      display: none;
+      width: 220px;
+      height: 220px;
+      object-fit: contain;
+      background: #fff;
       padding: 10px;
       border-radius: 10px;
     }
 
-    .pix-code {
-      margin-top: 15px;
+    .pix-copy {
       width: 100%;
       min-height: 100px;
       resize: none;
-      background: #101d30;
-      color: white;
-      border: 1px solid #33445e;
-      border-radius: 10px;
       padding: 12px;
-    }
-
-    .status {
-      margin-top: 15px;
-      padding: 12px;
+      background: #0b0b0b;
+      color: #fff;
+      border: 1px solid #333;
       border-radius: 8px;
-      display: none;
-      word-break: break-word;
+      font-size: 13px;
+      line-height: 1.4;
     }
 
-    .error {
-      background: #401820;
-      color: #ffb5bf;
-      border: 1px solid #71313d;
+    .copy-button {
+      background: #fff;
+      color: #000;
+      margin-top: 10px;
     }
 
-    .success {
-      background: #0c3925;
-      color: #9effc7;
-      border: 1px solid #17613d;
+    .payment-info {
+      color: #999;
+      font-size: 13px;
+      margin-top: 12px;
     }
 
     .access {
-      margin-top: 35px;
-      text-align: center;
-    }
-
-    .access a {
-      display: none;
-      margin-top: 15px;
-      padding: 14px;
-      border-radius: 10px;
-      background: #229ed9;
-      color: white;
-      text-decoration: none;
-      font-weight: bold;
-    }
-
-    .legal {
       margin-top: 30px;
-      text-align: center;
-      color: #7f8da1;
-      font-size: 13px;
-      line-height: 1.5;
     }
 
-    @media (max-width: 800px) {
+    .warning {
+      text-align: center;
+      color: #888;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 30px;
+    }
+
+    @media (max-width: 700px) {
       .plans {
         grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 500px) {
-      .plans {
-        grid-template-columns: 1fr;
       }
 
       .header h1 {
         font-size: 34px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .container {
+        padding: 20px 10px 40px;
+      }
+
+      .card {
+        padding: 18px;
       }
     }
   </style>
@@ -240,8 +248,7 @@
 
     <div class="header">
       <h1>BAIANO TIPS</h1>
-      <h2>Tips e Alavancagem</h2>
-      <p>Escolha seu plano e tenha acesso às nossas dicas.</p>
+      <p>Tips e Alavancagem</p>
     </div>
 
     <div class="plans">
@@ -274,26 +281,28 @@
 
     <div class="card">
 
+      <h2>Assine agora</h2>
+
       <label for="name">Nome completo</label>
       <input
-        id="name"
         type="text"
-        placeholder="Digite seu nome completo"
+        id="name"
+        placeholder="Digite seu nome"
       >
 
       <label for="cpf">CPF</label>
       <input
-        id="cpf"
         type="text"
-        maxlength="14"
+        id="cpf"
         placeholder="000.000.000-00"
+        maxlength="14"
       >
 
       <label for="email">E-mail</label>
       <input
-        id="email"
         type="email"
-        placeholder="seuemail@email.com"
+        id="email"
+        placeholder="seuemail@gmail.com"
       >
 
       <button id="generatePix">
@@ -304,536 +313,538 @@
 
       <div id="pixBox" class="pix-box">
 
-        <h3>PIX gerado!</h3>
+        <h2>PIX gerado!</h2>
 
-        <p>Escaneie o QR Code ou copie o código abaixo.</p>
+        <p>
+          Escaneie o QR Code abaixo para realizar o pagamento.
+        </p>
 
-        <img
-          id="qrCode"
-          alt="QR Code PIX"
-        >
+        <div class="qr-wrapper">
+          <img
+            id="qrCodeImage"
+            alt="QR Code PIX"
+          >
+        </div>
+
+        <p>
+          Ou copie e cole o código PIX:
+        </p>
 
         <textarea
           id="pixCode"
-          class="pix-code"
+          class="pix-copy"
           readonly
         ></textarea>
 
-        <button id="copyPix">
+        <button
+          id="copyPix"
+          class="copy-button"
+        >
           COPIAR PIX
         </button>
 
-      </div>
-
-      <div class="access">
-
-        <h3>Já sou assinante</h3>
-
-        <input
-          id="accessEmail"
-          type="email"
-          placeholder="Digite seu e-mail"
-        >
-
-        <button id="checkAccess">
-          VERIFICAR ACESSO
-        </button>
-
-        <div id="accessStatus" class="status"></div>
-
-        <a
-          id="telegramLink"
-          href="#"
-          target="_blank"
-        >
-          ENTRAR NO TELEGRAM
-        </a>
+        <div id="paymentInfo" class="payment-info"></div>
 
       </div>
 
     </div>
 
-    <div class="legal">
-      🔞 Conteúdo destinado a maiores de 18 anos.<br>
-      Aposte com responsabilidade. Nunca aposte valores que não possa perder.
+    <div class="card access">
+
+      <h2>Já sou assinante</h2>
+
+      <label for="accessEmail">E-mail cadastrado</label>
+
+      <input
+        type="email"
+        id="accessEmail"
+        placeholder="Digite seu e-mail"
+      >
+
+      <button id="accessButton">
+        VERIFICAR ACESSO
+      </button>
+
+      <div id="accessStatus" class="status"></div>
+
+    </div>
+
+    <div class="warning">
+      🔞 Conteúdo destinado exclusivamente a maiores de 18 anos.
+      <br>
+      Aposte com responsabilidade. Nunca aposte mais do que pode perder.
     </div>
 
   </div>
 
-<script>
+  <script>
 
-let selectedPlan = "mensal";
+    let selectedPlan = "mensal";
 
-const plans = document.querySelectorAll(".plan");
+    const plans = {
+      mensal: {
+        name: "Mensal",
+        price: 29.90,
+        days: 30
+      },
 
-const nameInput = document.getElementById("name");
-const cpfInput = document.getElementById("cpf");
-const emailInput = document.getElementById("email");
+      trimestral: {
+        name: "Trimestral",
+        price: 69.90,
+        days: 90
+      },
 
-const generatePixButton =
-  document.getElementById("generatePix");
+      semestral: {
+        name: "Semestral",
+        price: 119.90,
+        days: 180
+      },
 
-const statusBox =
-  document.getElementById("status");
+      anual: {
+        name: "Anual",
+        price: 199.90,
+        days: 365
+      }
+    };
 
-const pixBox =
-  document.getElementById("pixBox");
+    const planElements =
+      document.querySelectorAll(".plan");
 
-const pixCode =
-  document.getElementById("pixCode");
+    planElements.forEach((plan) => {
 
-const qrCode =
-  document.getElementById("qrCode");
+      plan.addEventListener("click", () => {
 
-const copyPix =
-  document.getElementById("copyPix");
+        planElements.forEach((item) => {
+          item.classList.remove("selected");
+        });
 
-const accessEmail =
-  document.getElementById("accessEmail");
+        plan.classList.add("selected");
 
-const checkAccess =
-  document.getElementById("checkAccess");
+        selectedPlan =
+          plan.getAttribute("data-plan");
 
-const accessStatus =
-  document.getElementById("accessStatus");
+      });
 
-const telegramLink =
-  document.getElementById("telegramLink");
-
-let currentOrderId = null;
-
-
-/* SELEÇÃO DOS PLANOS */
-
-plans.forEach((plan) => {
-
-  plan.addEventListener("click", () => {
-
-    plans.forEach((item) => {
-      item.classList.remove("selected");
     });
 
-    plan.classList.add("selected");
 
-    selectedPlan =
-      plan.dataset.plan;
+    // CPF
+    const cpfInput =
+      document.getElementById("cpf");
 
-  });
+    cpfInput.addEventListener("input", () => {
 
-});
+      let value =
+        cpfInput.value.replace(/\D/g, "");
 
+      if (value.length > 11) {
+        value = value.substring(0, 11);
+      }
 
-/* FORMATAÇÃO CPF */
-
-cpfInput.addEventListener("input", () => {
-
-  let value =
-    cpfInput.value.replace(/\D/g, "");
-
-  if (value.length > 11) {
-    value = value.substring(0, 11);
-  }
-
-  if (value.length > 9) {
-
-    value =
-      value.replace(
-        /(\d{3})(\d{3})(\d{3})(\d{0,2})/,
-        "$1.$2.$3-$4"
-      );
-
-  } else if (value.length > 6) {
-
-    value =
-      value.replace(
-        /(\d{3})(\d{3})(\d{0,3})/,
-        "$1.$2.$3"
-      );
-
-  } else if (value.length > 3) {
-
-    value =
-      value.replace(
-        /(\d{3})(\d{0,3})/,
+      value = value.replace(
+        /(\d{3})(\d)/,
         "$1.$2"
       );
 
-  }
-
-  cpfInput.value = value;
-
-});
-
-
-/* MOSTRAR STATUS */
-
-function showStatus(message, type) {
-
-  statusBox.textContent = message;
-
-  statusBox.className =
-    "status " + type;
-
-  statusBox.style.display =
-    "block";
-
-}
-
-
-/* GERAR PIX */
-
-generatePixButton.addEventListener(
-  "click",
-  async () => {
-
-    const name =
-      nameInput.value.trim();
-
-    const cpf =
-      cpfInput.value.trim();
-
-    const email =
-      emailInput.value.trim();
-
-    if (!name) {
-
-      showStatus(
-        "Digite seu nome.",
-        "error"
+      value = value.replace(
+        /(\d{3})(\d)/,
+        "$1.$2"
       );
 
-      return;
-    }
-
-    if (!cpf) {
-
-      showStatus(
-        "Digite seu CPF.",
-        "error"
+      value = value.replace(
+        /(\d{3})(\d{1,2})$/,
+        "$1-$2"
       );
 
-      return;
+      cpfInput.value = value;
+
+    });
+
+
+    const generatePixButton =
+      document.getElementById("generatePix");
+
+    const statusBox =
+      document.getElementById("status");
+
+    const pixBox =
+      document.getElementById("pixBox");
+
+    const qrCodeImage =
+      document.getElementById("qrCodeImage");
+
+    const pixCode =
+      document.getElementById("pixCode");
+
+    const paymentInfo =
+      document.getElementById("paymentInfo");
+
+
+    function showStatus(message) {
+
+      statusBox.style.display = "block";
+      statusBox.textContent = message;
+
     }
 
-    if (!email) {
 
-      showStatus(
-        "Digite seu e-mail.",
-        "error"
-      );
+    generatePixButton.addEventListener(
+      "click",
+      async () => {
 
-      return;
-    }
+        try {
 
-    generatePixButton.disabled =
-      true;
+          const name =
+            document.getElementById("name").value.trim();
 
-    generatePixButton.textContent =
-      "GERANDO PIX...";
+          const cpf =
+            document.getElementById("cpf").value.trim();
 
-    pixBox.style.display =
-      "none";
+          const email =
+            document.getElementById("email").value.trim();
 
-    statusBox.style.display =
-      "none";
 
-    try {
-
-      const response =
-        await fetch(
-          "/api/create-payment",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
-
-            body: JSON.stringify({
-              name,
-              cpf,
-              email,
-              plan: selectedPlan
-            })
+          if (!name) {
+            throw new Error(
+              "Digite seu nome completo."
+            );
           }
-        );
 
-      const data =
-        await response.json();
+          if (!cpf) {
+            throw new Error(
+              "Digite seu CPF."
+            );
+          }
 
-      /*
-       * IMPORTANTE:
-       * Aqui mostramos a mensagem
-       * real enviada pelo servidor.
-       */
+          if (!email) {
+            throw new Error(
+              "Digite seu e-mail."
+            );
+          }
 
-      if (!response.ok) {
 
-        let errorMessage =
-          data.message ||
-          data.error ||
-          "Não foi possível gerar o PIX.";
+          generatePixButton.disabled = true;
 
-        if (
-          data.details &&
-          data.details.error_messages
-        ) {
+          showStatus(
+            "Gerando seu PIX, aguarde..."
+          );
 
-          const details =
-            data.details.error_messages
-              .map((item) => {
+          pixBox.style.display = "none";
 
-                return (
-                  (item.code || "ERRO") +
-                  " - " +
-                  (
-                    item.description ||
-                    "Erro não informado"
-                  ) +
-                  (
-                    item.parameter_name
-                      ? " [" +
-                        item.parameter_name +
-                        "]"
-                      : ""
-                  )
-                );
+          qrCodeImage.style.display = "none";
+
+          const response =
+            await fetch("/api/create-payment", {
+
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/json"
+              },
+
+              body: JSON.stringify({
+
+                name,
+                cpf,
+                email,
+                plan: selectedPlan
 
               })
-              .join(" | ");
 
-          errorMessage +=
-            " | " + details;
-
-        }
-
-        throw new Error(
-          errorMessage
-        );
-
-      }
-
-      currentOrderId =
-        data.orderId;
-
-      pixCode.value =
-        data.pix || "";
-
-      if (data.qrCode) {
-
-        qrCode.src =
-          data.qrCode;
-
-      } else if (data.encodedImage) {
-
-        qrCode.src =
-          data.encodedImage;
-
-      } else if (data.pix) {
-
-        qrCode.src =
-          "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
-          encodeURIComponent(
-            data.pix
-          );
-
-      }
-
-      pixBox.style.display =
-        "block";
-
-      showStatus(
-        "PIX gerado com sucesso!",
-        "success"
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Erro:",
-        error
-      );
-
-      showStatus(
-        error.message ||
-        "Não foi possível gerar o PIX.",
-        "error"
-      );
-
-    } finally {
-
-      generatePixButton.disabled =
-        false;
-
-      generatePixButton.textContent =
-        "GERAR PIX";
-
-    }
-
-  }
-);
+            });
 
 
-/* COPIAR PIX */
-
-copyPix.addEventListener(
-  "click",
-  async () => {
-
-    if (!pixCode.value) {
-      return;
-    }
-
-    try {
-
-      await navigator.clipboard.writeText(
-        pixCode.value
-      );
-
-      copyPix.textContent =
-        "PIX COPIADO!";
-
-      setTimeout(() => {
-
-        copyPix.textContent =
-          "COPIAR PIX";
-
-      }, 2000);
-
-    } catch (error) {
-
-      pixCode.select();
-
-      document.execCommand(
-        "copy"
-      );
-
-      copyPix.textContent =
-        "PIX COPIADO!";
-
-      setTimeout(() => {
-
-        copyPix.textContent =
-          "COPIAR PIX";
-
-      }, 2000);
-
-    }
-
-  }
-);
+          const data =
+            await response.json();
 
 
-/* VERIFICAR ACESSO */
+          if (!response.ok) {
 
-checkAccess.addEventListener(
-  "click",
-  async () => {
+            let errorMessage =
+              data.message ||
+              data.error ||
+              "Não foi possível gerar o PIX.";
 
-    const email =
-      accessEmail.value.trim();
+            if (
+              data.details &&
+              data.details.error_messages
+            ) {
 
-    if (!email) {
+              const details =
+                data.details.error_messages
+                  .map((item) => {
 
-      accessStatus.textContent =
-        "Digite seu e-mail.";
+                    return (
+                      (item.code || "ERRO") +
+                      " - " +
+                      (item.description ||
+                        "Erro não informado") +
+                      (
+                        item.parameter_name
+                          ? " [" +
+                            item.parameter_name +
+                            "]"
+                          : ""
+                      )
+                    );
 
-      accessStatus.className =
-        "status error";
+                  })
+                  .join(" | ");
 
-      accessStatus.style.display =
-        "block";
+              errorMessage +=
+                " | " + details;
 
-      return;
-    }
+            }
 
-    checkAccess.disabled =
-      true;
+            throw new Error(
+              errorMessage
+            );
 
-    checkAccess.textContent =
-      "VERIFICANDO...";
+          }
 
-    try {
 
-      const response =
-        await fetch(
-          "/api/access?email=" +
-          encodeURIComponent(email)
-        );
+          // PIX copia e cola
+          if (data.qrCode) {
+            pixCode.value =
+              data.qrCode;
+          } else if (data.pix) {
+            pixCode.value =
+              data.pix;
+          } else {
+            pixCode.value =
+              "";
+          }
 
-      const data =
-        await response.json();
 
-      if (
-        data.active
-      ) {
+          // QR CODE COMO IMAGEM
+          if (data.qrCodeBase64) {
 
-        accessStatus.textContent =
-          "Acesso ativo até " +
-          new Date(
-            data.activeUntil
-          ).toLocaleDateString(
-            "pt-BR"
-          );
+            qrCodeImage.src =
+              data.qrCodeBase64;
 
-        accessStatus.className =
-          "status success";
+            qrCodeImage.style.display =
+              "block";
 
-        accessStatus.style.display =
-          "block";
+          } else {
 
-        if (data.invite) {
+            qrCodeImage.style.display =
+              "none";
 
-          telegramLink.href =
-            data.invite;
+          }
 
-          telegramLink.style.display =
+
+          paymentInfo.innerHTML =
+            "Plano: <strong>" +
+            (plans[selectedPlan]?.name ||
+              selectedPlan) +
+            "</strong><br>" +
+            "Valor: <strong>R$ " +
+            Number(
+              data.amount ||
+              plans[selectedPlan].price
+            ).toFixed(2).replace(".", ",") +
+            "</strong>";
+
+
+          pixBox.style.display =
             "block";
 
+          showStatus(
+            "PIX gerado com sucesso! Faça o pagamento para ativar sua assinatura."
+          );
+
+
+          pixBox.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+
+
+        } catch (error) {
+
+          showStatus(
+            "Erro: " +
+            error.message
+          );
+
+        } finally {
+
+          generatePixButton.disabled =
+            false;
+
         }
 
-      } else {
+      }
+    );
 
-        accessStatus.textContent =
-          "Nenhuma assinatura ativa encontrada para este e-mail.";
 
-        accessStatus.className =
-          "status error";
+    // COPIAR PIX
+    const copyPixButton =
+      document.getElementById("copyPix");
 
-        accessStatus.style.display =
-          "block";
+    copyPixButton.addEventListener(
+      "click",
+      async () => {
 
-        telegramLink.style.display =
-          "none";
+        const code =
+          pixCode.value.trim();
+
+        if (!code) {
+
+          showStatus(
+            "Código PIX não disponível."
+          );
+
+          return;
+
+        }
+
+        try {
+
+          await navigator.clipboard.writeText(
+            code
+          );
+
+          copyPixButton.textContent =
+            "PIX COPIADO!";
+
+          setTimeout(() => {
+
+            copyPixButton.textContent =
+              "COPIAR PIX";
+
+          }, 2000);
+
+        } catch (error) {
+
+          pixCode.select();
+
+          document.execCommand("copy");
+
+          copyPixButton.textContent =
+            "PIX COPIADO!";
+
+          setTimeout(() => {
+
+            copyPixButton.textContent =
+              "COPIAR PIX";
+
+          }, 2000);
+
+        }
 
       }
+    );
 
-    } catch (error) {
 
-      accessStatus.textContent =
-        "Erro ao verificar acesso.";
+    // ACESSO DO ASSINANTE
+    const accessButton =
+      document.getElementById("accessButton");
 
-      accessStatus.className =
-        "status error";
+    const accessStatus =
+      document.getElementById("accessStatus");
 
-      accessStatus.style.display =
-        "block";
 
-    } finally {
+    accessButton.addEventListener(
+      "click",
+      async () => {
 
-      checkAccess.disabled =
-        false;
+        try {
 
-      checkAccess.textContent =
-        "VERIFICAR ACESSO";
+          const email =
+            document
+              .getElementById("accessEmail")
+              .value
+              .trim();
 
-    }
 
-  }
-);
+          if (!email) {
 
-</script>
+            accessStatus.style.display =
+              "block";
+
+            accessStatus.textContent =
+              "Digite seu e-mail.";
+
+            return;
+
+          }
+
+
+          accessButton.disabled =
+            true;
+
+          accessStatus.style.display =
+            "block";
+
+          accessStatus.textContent =
+            "Verificando acesso...";
+
+
+          const response =
+            await fetch(
+              "/api/access?email=" +
+              encodeURIComponent(email)
+            );
+
+
+          const data =
+            await response.json();
+
+
+          if (!response.ok) {
+
+            throw new Error(
+              data.message ||
+              "Não foi possível verificar o acesso."
+            );
+
+          }
+
+
+          if (
+            data.active &&
+            data.telegramInviteUrl
+          ) {
+
+            accessStatus.innerHTML =
+              "✅ Acesso ativo!<br><br>" +
+              "<a href=\"" +
+              data.telegramInviteUrl +
+              "\" target=\"_blank\" " +
+              "style=\"color:#00ff66;font-weight:bold;\">" +
+              "ENTRAR NO TELEGRAM" +
+              "</a>";
+
+          } else {
+
+            accessStatus.textContent =
+              data.message ||
+              "Nenhuma assinatura ativa encontrada.";
+
+          }
+
+
+        } catch (error) {
+
+          accessStatus.style.display =
+            "block";
+
+          accessStatus.textContent =
+            "Erro: " +
+            error.message;
+
+        } finally {
+
+          accessButton.disabled =
+            false;
+
+        }
+
+      }
+    );
+
+  </script>
 
 </body>
 </html>
