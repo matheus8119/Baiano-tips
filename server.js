@@ -21,9 +21,13 @@ const pool = new Pool({
 
 const MP_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
-const TELEGRAM_INVITE_URL =
-  process.env.TELEGRAM_INVITE_URL ||
-  "https://t.me/+1F0a440X9zg2MDgx";
+const TELEGRAM_BOT_TOKEN =
+  (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+
+const TELEGRAM_CHAT_ID =
+  (process.env.TELEGRAM_CHAT_ID || "").trim();
+
+let TELEGRAM_GENERATED_INVITE_URL = "";
 
 const PLAN_DAYS = {
   mensal: 30,
@@ -49,6 +53,61 @@ function addDays(date, days) {
   const result = new Date(date);
   result.setUTCDate(result.getUTCDate() + days);
   return result;
+}
+
+/* =========================================================
+   TELEGRAM
+========================================================= */
+
+async function getTelegramInviteUrl() {
+
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    throw new Error(
+      "TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurado."
+    );
+  }
+
+  if (TELEGRAM_GENERATED_INVITE_URL) {
+    return TELEGRAM_GENERATED_INVITE_URL;
+  }
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createChatInviteLink`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID
+      })
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok || !data.ok) {
+
+    console.error(
+      "ERRO AO CRIAR LINK TELEGRAM:",
+      data
+    );
+
+    throw new Error(
+      data?.description ||
+      "Não foi possível criar o link do Telegram."
+    );
+  }
+
+  TELEGRAM_GENERATED_INVITE_URL =
+    data.result.invite_link;
+
+  console.log(
+    "LINK TELEGRAM GERADO:",
+    TELEGRAM_GENERATED_INVITE_URL
+  );
+
+  return TELEGRAM_GENERATED_INVITE_URL;
 }
 
 async function ensureTable() {
@@ -491,6 +550,11 @@ async function checkAccess() {
 </html>
   `);
 });
+
+/* =========================================================
+   CRIAR PAGAMENTO
+========================================================= */
+
 app.post("/api/create-payment", async (req, res) => {
 
   try {
@@ -904,6 +968,22 @@ app.get("/api/access", async (req, res) => {
       const payment =
         result.rows[0];
 
+      let telegramInviteUrl = null;
+
+      try {
+
+        telegramInviteUrl =
+          await getTelegramInviteUrl();
+
+      } catch (telegramError) {
+
+        console.error(
+          "ERRO AO GERAR CONVITE TELEGRAM:",
+          telegramError
+        );
+
+      }
+
       return res.json({
 
         success: true,
@@ -920,7 +1000,7 @@ app.get("/api/access", async (req, res) => {
           payment.active_until,
 
         telegram:
-          TELEGRAM_INVITE_URL
+          telegramInviteUrl
 
       });
 
@@ -1023,6 +1103,22 @@ app.get("/api/fix-access", async (req, res) => {
     const payment =
       result.rows[0];
 
+    let telegramInviteUrl = null;
+
+    try {
+
+      telegramInviteUrl =
+        await getTelegramInviteUrl();
+
+    } catch (telegramError) {
+
+      console.error(
+        "ERRO AO GERAR CONVITE TELEGRAM:",
+        telegramError
+      );
+
+    }
+
     return res.json({
 
       success: true,
@@ -1046,7 +1142,7 @@ app.get("/api/fix-access", async (req, res) => {
         payment.active_until,
 
       telegram:
-        TELEGRAM_INVITE_URL
+        telegramInviteUrl
 
     });
 
@@ -1315,6 +1411,22 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
 
     }
 
+    let telegramInviteUrl = null;
+
+    try {
+
+      telegramInviteUrl =
+        await getTelegramInviteUrl();
+
+    } catch (telegramError) {
+
+      console.error(
+        "ERRO AO GERAR CONVITE TELEGRAM:",
+        telegramError
+      );
+
+    }
+
     return res.json({
 
       success: true,
@@ -1339,7 +1451,7 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
       activeUntil,
 
       telegram:
-        TELEGRAM_INVITE_URL
+        telegramInviteUrl
 
     });
 
@@ -1573,7 +1685,8 @@ app.get("/api/config-test", (req, res) => {
 
     telegramConfigured:
       Boolean(
-        process.env.TELEGRAM_INVITE_URL
+        TELEGRAM_BOT_TOKEN &&
+        TELEGRAM_CHAT_ID
       ),
 
     databaseConfigured:
