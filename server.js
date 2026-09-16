@@ -1,9 +1,11 @@
 import express from "express";
-import Database from "better-sqlite3";
+import pg from "pg";
 import crypto from "crypto";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+const { Pool } = pg;
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -23,33 +25,49 @@ const TELEGRAM_INVITE_URL =
   "https://t.me/+1F0a440X9zg2MDgx";
 
 const PIX_ENABLED =
-  String(process.env.PIX_ENABLED || "true")
-    .toLowerCase() === "true";
+  String(process.env.PIX_ENABLED || "true").toLowerCase() === "true";
 
 // ======================================================
-// BANCO
+// POSTGRES / SUPABASE
 // ======================================================
 
-const db = new Database("payments.db");
+if (!process.env.DATABASE_URL) {
+  console.error("ERRO: DATABASE_URL não configurada.");
+}
 
-db.pragma("journal_mode = WAL");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  max: 5
+});
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    payment_id TEXT UNIQUE,
-    external_reference TEXT,
-    name TEXT,
-    cpf TEXT,
-    email TEXT,
-    plan TEXT,
-    amount REAL,
-    status TEXT,
-    created_at TEXT,
-    approved_at TEXT,
-    active_until TEXT
-  )
-`);
+async function initDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id BIGSERIAL PRIMARY KEY,
+      payment_id TEXT UNIQUE,
+      external_reference TEXT,
+      name TEXT,
+      cpf TEXT,
+      email TEXT,
+      plan TEXT,
+      amount NUMERIC(10,2),
+      status TEXT,
+      created_at TIMESTAMPTZ,
+      approved_at TIMESTAMPTZ,
+      active_until TIMESTAMPTZ
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_payments_email
+    ON payments (LOWER(email))
+  `);
+
+  console.log("Banco PostgreSQL conectado e tabela payments pronta.");
+}
 
 // ======================================================
 // PLANOS
@@ -90,34 +108,9 @@ function normalizeEmail(email) {
     .trim()
     .toLowerCase();
 
-  // Quando um e-mail com "+" chega pela URL,
-  // alguns clientes podem transformar o "+" em espaço.
   value = value.replace(/\s+/g, "+");
 
   return value;
-}
-
-function emailVariants(email) {
-  const original = String(email || "").trim();
-
-  const normalized =
-    normalizeEmail(original);
-
-  const plusAsSpace =
-    original
-      .replace(/\+/g, " ")
-      .trim()
-      .toLowerCase();
-
-  return [
-    original.toLowerCase(),
-    normalized,
-    plusAsSpace
-  ].filter(
-    (value, index, array) =>
-      value &&
-      array.indexOf(value) === index
-  );
 }
 
 // ======================================================
@@ -125,8 +118,7 @@ function emailVariants(email) {
 // ======================================================
 
 function validateCPF(cpf) {
-  const value =
-    String(cpf || "").replace(/\D/g, "");
+  const value = String(cpf || "").replace(/\D/g, "");
 
   if (value.length !== 11) {
     return false;
@@ -139,13 +131,10 @@ function validateCPF(cpf) {
   let sum = 0;
 
   for (let i = 0; i < 9; i++) {
-    sum +=
-      Number(value[i]) *
-      (10 - i);
+    sum += Number(value[i]) * (10 - i);
   }
 
-  let digit =
-    11 - (sum % 11);
+  let digit = 11 - (sum % 11);
 
   if (digit >= 10) {
     digit = 0;
@@ -158,33 +147,24 @@ function validateCPF(cpf) {
   sum = 0;
 
   for (let i = 0; i < 10; i++) {
-    sum +=
-      Number(value[i]) *
-      (11 - i);
+    sum += Number(value[i]) * (11 - i);
   }
 
-  digit =
-    11 - (sum % 11);
+  digit = 11 - (sum % 11);
 
   if (digit >= 10) {
     digit = 0;
   }
 
-  return (
-    digit === Number(value[10])
-  );
+  return digit === Number(value[10]);
 }
 
 // ======================================================
 // IDENTIFICAR PLANO
 // ======================================================
 
-function getPlanByDescription(
-  description = ""
-) {
-  const text =
-    String(description)
-      .toLowerCase();
+function getPlanByDescription(description = "") {
+  const text = String(description).toLowerCase();
 
   if (text.includes("anual")) {
     return "anual";
@@ -206,18 +186,10 @@ function getPlanByDescription(
 }
 
 function getPlanByAmount(amount) {
-  const value =
-    Number(amount || 0);
+  const value = Number(amount || 0);
 
-  for (
-    const [key, plan]
-    of Object.entries(PLANS)
-  ) {
-    if (
-      Math.abs(
-        plan.amount - value
-      ) < 0.01
-    ) {
+  for (const [key, plan] of Object.entries(PLANS)) {
+    if (Math.abs(plan.amount - value) < 0.01) {
       return key;
     }
   }
@@ -227,12 +199,8 @@ function getPlanByAmount(amount) {
 
 function getPlan(payment) {
   return (
-    getPlanByDescription(
-      payment?.description
-    ) ||
-    getPlanByAmount(
-      payment?.transaction_amount
-    )
+    getPlanByDescription(payment?.description) ||
+    getPlanByAmount(payment?.transaction_amount)
   );
 }
 
@@ -240,24 +208,16 @@ function getPlan(payment) {
 // DATA DE VALIDADE
 // ======================================================
 
-function calculateActiveUntil(
-  approvedAt,
-  planKey
-) {
-  const plan =
-    PLANS[planKey];
+function calculateActiveUntil(approvedAt, planKey) {
+  const plan = PLANS[planKey];
 
   if (!plan) {
     return null;
   }
 
-  const date =
-    new Date(approvedAt);
+  const date = new Date(approvedAt);
 
-  date.setDate(
-    date.getDate() +
-    plan.days
-  );
+  date.setDate(date.getDate() + plan.days);
 
   return date.toISOString();
 }
@@ -266,52 +226,36 @@ function calculateActiveUntil(
 // MERCADO PAGO
 // ======================================================
 
-async function mercadoPagoRequest(
-  path,
-  options = {}
-) {
+async function mercadoPagoRequest(path, options = {}) {
   if (!MP_TOKEN) {
     throw new Error(
       "MERCADOPAGO_ACCESS_TOKEN não configurado."
     );
   }
 
-  const response =
-    await fetch(
-      `https://api.mercadopago.com${path}`,
-      {
-        method:
-          options.method || "GET",
+  const response = await fetch(
+    `https://api.mercadopago.com${path}`,
+    {
+      method: options.method || "GET",
 
-        headers: {
-          Authorization:
-            `Bearer ${MP_TOKEN}`,
+      headers: {
+        Authorization: `Bearer ${MP_TOKEN}`,
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      },
 
-          "Content-Type":
-            "application/json",
+      body: options.body
+        ? JSON.stringify(options.body)
+        : undefined
+    }
+  );
 
-          ...(options.headers || {})
-        },
-
-        body:
-          options.body
-            ? JSON.stringify(
-                options.body
-              )
-            : undefined
-      }
-    );
-
-  const text =
-    await response.text();
+  const text = await response.text();
 
   let data;
 
   try {
-    data =
-      text
-        ? JSON.parse(text)
-        : {};
+    data = text ? JSON.parse(text) : {};
   } catch {
     data = {
       raw: text
@@ -319,16 +263,13 @@ async function mercadoPagoRequest(
   }
 
   if (!response.ok) {
-    const error =
-      new Error(
-        data?.message ||
-        data?.error ||
-        `Mercado Pago HTTP ${response.status}`
-      );
+    const error = new Error(
+      data?.message ||
+      data?.error ||
+      `Mercado Pago HTTP ${response.status}`
+    );
 
-    error.status =
-      response.status;
-
+    error.status = response.status;
     error.data = data;
 
     throw error;
@@ -341,15 +282,13 @@ async function mercadoPagoRequest(
 // SALVAR PAGAMENTO APROVADO
 // ======================================================
 
-function saveApprovedPayment(
+async function saveApprovedPayment(
   payment,
   emailOverride = ""
 ) {
-  const paymentId =
-    String(payment.id);
+  const paymentId = String(payment.id);
 
-  const plan =
-    getPlan(payment);
+  const plan = getPlan(payment);
 
   if (!plan) {
     throw new Error(
@@ -370,118 +309,98 @@ function saveApprovedPayment(
     );
 
   const overrideEmail =
-    normalizeEmail(
-      emailOverride
-    );
+    normalizeEmail(emailOverride);
 
   const paymentEmail =
-    normalizeEmail(
-      payment?.payer?.email
-    );
+    normalizeEmail(payment?.payer?.email);
 
   const email =
     overrideEmail ||
     paymentEmail ||
     "";
 
-  const existing =
-    db.prepare(`
+  const existingResult = await pool.query(
+    `
       SELECT *
       FROM payments
-      WHERE payment_id = ?
+      WHERE payment_id = $1
       LIMIT 1
-    `).get(paymentId);
+    `,
+    [paymentId]
+  );
+
+  const existing = existingResult.rows[0];
 
   if (existing) {
-
-    db.prepare(`
-      UPDATE payments
-
-      SET
-        email = ?,
-        plan = ?,
-        amount = ?,
-        status = ?,
-        external_reference = ?,
-        approved_at = ?,
-        active_until = ?
-
-      WHERE payment_id = ?
-    `).run(
-      email ||
-        existing.email ||
-        "",
-
-      plan,
-
-      Number(
-        payment.transaction_amount ||
-        0
-      ),
-
-      "approved",
-
-      payment.external_reference ||
-        existing.external_reference ||
-        null,
-
-      approvedAt,
-
-      activeUntil,
-
-      paymentId
+    await pool.query(
+      `
+        UPDATE payments
+        SET
+          email = $1,
+          plan = $2,
+          amount = $3,
+          status = $4,
+          external_reference = $5,
+          approved_at = $6,
+          active_until = $7
+        WHERE payment_id = $8
+      `,
+      [
+        email || existing.email || "",
+        plan,
+        Number(payment.transaction_amount || 0),
+        "approved",
+        payment.external_reference ||
+          existing.external_reference ||
+          null,
+        approvedAt,
+        activeUntil,
+        paymentId
+      ]
     );
-
   } else {
-
-    db.prepare(`
-      INSERT INTO payments (
-        payment_id,
-        external_reference,
-        name,
-        cpf,
+    await pool.query(
+      `
+        INSERT INTO payments (
+          payment_id,
+          external_reference,
+          name,
+          cpf,
+          email,
+          plan,
+          amount,
+          status,
+          created_at,
+          approved_at,
+          active_until
+        )
+        VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10, $11
+        )
+        ON CONFLICT (payment_id)
+        DO UPDATE SET
+          email = EXCLUDED.email,
+          plan = EXCLUDED.plan,
+          amount = EXCLUDED.amount,
+          status = EXCLUDED.status,
+          approved_at = EXCLUDED.approved_at,
+          active_until = EXCLUDED.active_until
+      `,
+      [
+        paymentId,
+        payment.external_reference || null,
+        payment?.payer?.first_name || "",
+        payment?.payer?.identification?.number || "",
         email,
         plan,
-        amount,
-        status,
-        created_at,
-        approved_at,
-        active_until
-      )
-
-      VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-      )
-    `).run(
-      paymentId,
-
-      payment.external_reference ||
-        null,
-
-      payment?.payer?.first_name ||
-        "",
-
-      payment?.payer?.identification
-        ?.number ||
-        "",
-
-      email,
-
-      plan,
-
-      Number(
-        payment.transaction_amount ||
-        0
-      ),
-
-      "approved",
-
-      payment.date_created ||
-        new Date().toISOString(),
-
-      approvedAt,
-
-      activeUntil
+        Number(payment.transaction_amount || 0),
+        "approved",
+        payment.date_created ||
+          new Date().toISOString(),
+        approvedAt,
+        activeUntil
+      ]
     );
   }
 
@@ -492,12 +411,10 @@ function saveApprovedPayment(
 
     amount:
       Number(
-        payment.transaction_amount ||
-        0
+        payment.transaction_amount || 0
       ),
 
-    status:
-      "approved",
+    status: "approved",
 
     activeUntil
   };
@@ -511,12 +428,10 @@ app.post(
   "/api/create-payment",
   async (req, res) => {
     try {
-
       if (!PIX_ENABLED) {
         return res.status(400).json({
           success: false,
-          message:
-            "PIX está desativado."
+          message: "PIX está desativado."
         });
       }
 
@@ -543,16 +458,14 @@ app.post(
       if (!PLANS[plan]) {
         return res.status(400).json({
           success: false,
-          message:
-            "Plano inválido."
+          message: "Plano inválido."
         });
       }
 
       if (!validateCPF(cpf)) {
         return res.status(400).json({
           success: false,
-          message:
-            "CPF inválido."
+          message: "CPF inválido."
         });
       }
 
@@ -599,8 +512,7 @@ app.post(
                 `${BASE_URL}/api/mercadopago/webhook`,
 
               payer: {
-                email:
-                  cleanEmail,
+                email: cleanEmail,
 
                 first_name:
                   String(name).trim(),
@@ -615,6 +527,48 @@ app.post(
             }
           }
         );
+
+      // Salva o pagamento no PostgreSQL
+      // mesmo enquanto estiver pendente.
+      await pool.query(
+        `
+          INSERT INTO payments (
+            payment_id,
+            external_reference,
+            name,
+            cpf,
+            email,
+            plan,
+            amount,
+            status,
+            created_at
+          )
+          VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9
+          )
+          ON CONFLICT (payment_id)
+          DO UPDATE SET
+            email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            cpf = EXCLUDED.cpf,
+            plan = EXCLUDED.plan,
+            amount = EXCLUDED.amount,
+            status = EXCLUDED.status
+        `,
+        [
+          String(payment.id),
+          externalReference,
+          String(name).trim(),
+          String(cpf).replace(/\D/g, ""),
+          cleanEmail,
+          plan,
+          selectedPlan.amount,
+          payment.status || "pending",
+          payment.date_created ||
+            new Date().toISOString()
+        ]
+      );
 
       const transactionData =
         payment
@@ -635,8 +589,7 @@ app.post(
           null,
 
         qrCodeBase64:
-          transactionData
-            ?.qr_code_base64 ||
+          transactionData?.qr_code_base64 ||
           null,
 
         pix:
@@ -652,11 +605,9 @@ app.post(
       });
 
     } catch (error) {
-
       console.error(
         "ERRO CREATE PAYMENT:",
-        error?.data ||
-          error
+        error?.data || error
       );
 
       return res.status(500).json({
@@ -678,9 +629,7 @@ app.post(
 app.post(
   "/api/mercadopago/webhook",
   async (req, res) => {
-
     try {
-
       const paymentId =
         req.body?.data?.id ||
         req.body?.id;
@@ -703,8 +652,7 @@ app.post(
         payment.status ===
         "approved"
       ) {
-
-        saveApprovedPayment(
+        await saveApprovedPayment(
           payment
         );
 
@@ -717,11 +665,9 @@ app.post(
       return res.sendStatus(200);
 
     } catch (error) {
-
       console.error(
         "ERRO WEBHOOK:",
-        error?.data ||
-          error
+        error?.data || error
       );
 
       return res.sendStatus(200);
@@ -736,9 +682,7 @@ app.post(
 app.get(
   "/api/recover-payment-by-id",
   async (req, res) => {
-
     try {
-
       const paymentId =
         String(
           req.query.id || ""
@@ -777,7 +721,7 @@ app.get(
       }
 
       const saved =
-        saveApprovedPayment(
+        await saveApprovedPayment(
           payment
         );
 
@@ -812,11 +756,9 @@ app.get(
       });
 
     } catch (error) {
-
       console.error(
         "ERRO RECOVER ID:",
-        error?.data ||
-          error
+        error?.data || error
       );
 
       return res.status(500).json({
@@ -840,16 +782,12 @@ app.get(
 app.get(
   "/api/access",
   async (req, res) => {
-
     try {
-
       const rawEmail =
         req.query.email;
 
       const email =
-        normalizeEmail(
-          rawEmail
-        );
+        normalizeEmail(rawEmail);
 
       console.log(
         "VERIFICANDO ASSINATURA:",
@@ -869,53 +807,30 @@ app.get(
       }
 
       // =================================================
-      // 1. PROCURA LOCAL
+      // 1. PROCURA NO POSTGRES
       // =================================================
 
-      const localPayments =
-        db.prepare(`
-          SELECT *
-          FROM payments
-          WHERE status = 'approved'
-          ORDER BY id DESC
-        `).all();
-
-      console.log(
-        "PAGAMENTOS LOCAIS:",
-        localPayments.map(
-          (p) => ({
-            id: p.payment_id,
-            email: p.email,
-            plan: p.plan,
-            status: p.status
-          })
-        )
-      );
-
-      // Comparação robusta do e-mail
-      const localPayment =
-        localPayments.find(
-          (payment) => {
-
-            const dbEmail =
-              normalizeEmail(
-                payment.email
-              );
-
-            return (
-              dbEmail === email ||
-              dbEmail ===
-                String(
-                  rawEmail || ""
-                )
-                  .trim()
-                  .toLowerCase()
-            );
-          }
+      const result =
+        await pool.query(
+          `
+            SELECT *
+            FROM payments
+            WHERE status = 'approved'
+              AND LOWER(email) = LOWER($1)
+            ORDER BY id DESC
+          `,
+          [email]
         );
 
-      if (localPayment) {
+      console.log(
+        "PAGAMENTOS ENCONTRADOS:",
+        result.rows.length
+      );
 
+      const localPayment =
+        result.rows[0];
+
+      if (localPayment) {
         const activeUntil =
           localPayment.active_until
             ? new Date(
@@ -925,12 +840,10 @@ app.get(
 
         if (
           activeUntil &&
-          activeUntil >
-            new Date()
+          activeUntil > new Date()
         ) {
-
           console.log(
-            "ASSINATURA ENCONTRADA NO BANCO:",
+            "ASSINATURA ENCONTRADA:",
             localPayment.payment_id
           );
 
@@ -943,7 +856,9 @@ app.get(
               localPayment.plan,
 
             amount:
-              localPayment.amount,
+              Number(
+                localPayment.amount
+              ),
 
             paymentId:
               localPayment.payment_id,
@@ -958,11 +873,11 @@ app.get(
       }
 
       // =================================================
-      // 2. SE NÃO ACHOU LOCALMENTE, PROCURA NO MP
+      // 2. PROCURA NO MERCADO PAGO
       // =================================================
 
       console.log(
-        "Não encontrou localmente. Consultando Mercado Pago..."
+        "Não encontrou no banco. Consultando Mercado Pago..."
       );
 
       const search =
@@ -971,16 +886,13 @@ app.get(
         );
 
       const results =
-        Array.isArray(
-          search.results
-        )
+        Array.isArray(search.results)
           ? search.results
           : [];
 
       for (
         const item of results
       ) {
-
         if (
           item.status !==
           "approved"
@@ -989,7 +901,6 @@ app.get(
         }
 
         try {
-
           const payment =
             await mercadoPagoRequest(
               `/v1/payments/${item.id}`
@@ -997,18 +908,15 @@ app.get(
 
           const payerEmail =
             normalizeEmail(
-              payment
-                ?.payer
-                ?.email
+              payment?.payer?.email
             );
 
           if (
             payerEmail &&
             payerEmail === email
           ) {
-
             const saved =
-              saveApprovedPayment(
+              await saveApprovedPayment(
                 payment,
                 email
               );
@@ -1016,10 +924,8 @@ app.get(
             if (
               new Date(
                 saved.activeUntil
-              ) >
-              new Date()
+              ) > new Date()
             ) {
-
               return res.json({
                 success: true,
 
@@ -1044,7 +950,6 @@ app.get(
           }
 
         } catch (error) {
-
           console.error(
             "Erro consultando pagamento:",
             item.id,
@@ -1052,10 +957,6 @@ app.get(
           );
         }
       }
-
-      // =================================================
-      // 3. NENHUMA ASSINATURA
-      // =================================================
 
       return res.json({
         success: true,
@@ -1067,11 +968,9 @@ app.get(
       });
 
     } catch (error) {
-
       console.error(
         "ERRO ACCESS:",
-        error?.data ||
-          error
+        error?.data || error
       );
 
       return res.status(500).json({
@@ -1095,9 +994,7 @@ app.get(
 app.get(
   "/api/recover-payment",
   async (req, res) => {
-
     try {
-
       const email =
         normalizeEmail(
           req.query.email
@@ -1112,25 +1009,23 @@ app.get(
         });
       }
 
-      // Primeiro tenta pelo banco
-      const local =
-        db.prepare(`
-          SELECT *
-          FROM payments
-          WHERE status = 'approved'
-          ORDER BY id DESC
-        `).all();
-
-      const found =
-        local.find(
-          (payment) =>
-            normalizeEmail(
-              payment.email
-            ) === email
+      const result =
+        await pool.query(
+          `
+            SELECT *
+            FROM payments
+            WHERE status = 'approved'
+              AND LOWER(email) = LOWER($1)
+            ORDER BY id DESC
+            LIMIT 1
+          `,
+          [email]
         );
 
-      if (found) {
+      const found =
+        result.rows[0];
 
+      if (found) {
         return res.json({
           success: true,
           recovered: true,
@@ -1142,7 +1037,7 @@ app.get(
             found.plan,
 
           amount:
-            found.amount,
+            Number(found.amount),
 
           email:
             found.email,
@@ -1164,7 +1059,6 @@ app.get(
       });
 
     } catch (error) {
-
       console.error(
         "ERRO RECOVER EMAIL:",
         error
@@ -1186,44 +1080,44 @@ app.get(
 
 app.get(
   "/api/payment-diagnose",
-  (req, res) => {
-
+  async (req, res) => {
     try {
-
-      const payments =
-        db.prepare(`
-          SELECT
-            id,
-            payment_id,
-            external_reference,
-            name,
-            cpf,
-            email,
-            plan,
-            amount,
-            status,
-            created_at,
-            approved_at,
-            active_until
-          FROM payments
-          ORDER BY id DESC
-        `).all();
+      const result =
+        await pool.query(
+          `
+            SELECT
+              id,
+              payment_id,
+              external_reference,
+              name,
+              cpf,
+              email,
+              plan,
+              amount,
+              status,
+              created_at,
+              approved_at,
+              active_until
+            FROM payments
+            ORDER BY id DESC
+          `
+        );
 
       return res.json({
         success: true,
 
         total:
-          payments.length,
+          result.rows.length,
 
         databasePayment:
-          payments[0] ||
+          result.rows[0] ||
           null,
 
-        payments
+        payments:
+          result.rows
       });
 
     } catch (error) {
-
       return res.status(500).json({
         success: false,
         message:
@@ -1240,9 +1134,7 @@ app.get(
 app.get(
   "/api/mercadopago-payments",
   async (req, res) => {
-
     try {
-
       const data =
         await mercadoPagoRequest(
           "/v1/payments/search?sort=date_created&criteria=desc&limit=50"
@@ -1253,9 +1145,7 @@ app.get(
           .map(
             (payment) => ({
               id:
-                String(
-                  payment.id
-                ),
+                String(payment.id),
 
               status:
                 payment.status,
@@ -1297,7 +1187,6 @@ app.get(
       });
 
     } catch (error) {
-
       return res.status(500).json({
         success: false,
 
@@ -1310,15 +1199,13 @@ app.get(
 );
 
 // ======================================================
-// TESTE DO MERCADO PAGO
+// TESTE MERCADO PAGO
 // ======================================================
 
 app.get(
   "/api/mercadopago-test",
   async (req, res) => {
-
     try {
-
       const data =
         await mercadoPagoRequest(
           "/v1/payment_methods"
@@ -1339,7 +1226,6 @@ app.get(
       });
 
     } catch (error) {
-
       return res.status(
         error.status || 500
       ).json({
@@ -1363,12 +1249,10 @@ app.get(
 app.get(
   "/api/config-test",
   (req, res) => {
-
     const token =
       MP_TOKEN || "";
 
     return res.json({
-
       server:
         "online",
 
@@ -1394,6 +1278,11 @@ app.get(
           TELEGRAM_INVITE_URL
         ),
 
+      databaseConfigured:
+        Boolean(
+          process.env.DATABASE_URL
+        ),
+
       message:
         "Configuração carregada com sucesso."
     });
@@ -1407,7 +1296,6 @@ app.get(
 app.get(
   "/api/health",
   (req, res) => {
-
     res.json({
       success: true,
 
@@ -1424,13 +1312,27 @@ app.get(
 // SERVIDOR
 // ======================================================
 
-app.listen(
-  PORT,
-  () => {
+async function startServer() {
+  try {
+    await initDatabase();
 
-    console.log(
-      `Servidor online na porta ${PORT}`
+    app.listen(
+      PORT,
+      () => {
+        console.log(
+          `Servidor online na porta ${PORT}`
+        );
+      }
     );
 
+  } catch (error) {
+    console.error(
+      "ERRO AO CONECTAR AO BANCO:",
+      error
+    );
+
+    process.exit(1);
   }
-);
+}
+
+startServer();
