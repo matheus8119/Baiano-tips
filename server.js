@@ -1,3 +1,4 @@
+```js
 import express from "express";
 import dotenv from "dotenv";
 import pg from "pg";
@@ -26,8 +27,6 @@ const TELEGRAM_BOT_TOKEN =
 
 const TELEGRAM_CHAT_ID =
   (process.env.TELEGRAM_CHAT_ID || "").trim();
-
-let TELEGRAM_GENERATED_INVITE_URL = "";
 
 const PLAN_DAYS = {
   mensal: 30,
@@ -67,9 +66,9 @@ async function getTelegramInviteUrl() {
     );
   }
 
-  if (TELEGRAM_GENERATED_INVITE_URL) {
-    return TELEGRAM_GENERATED_INVITE_URL;
-  }
+  console.log(
+    "SOLICITANDO NOVO LINK DE CONVITE AO TELEGRAM..."
+  );
 
   const response = await fetch(
     `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createChatInviteLink`,
@@ -99,15 +98,20 @@ async function getTelegramInviteUrl() {
     );
   }
 
-  TELEGRAM_GENERATED_INVITE_URL =
-    data.result.invite_link;
+  const inviteLink =
+    data.result?.invite_link;
+
+  if (!inviteLink) {
+    throw new Error(
+      "O Telegram não retornou o link de convite."
+    );
+  }
 
   console.log(
-    "LINK TELEGRAM GERADO:",
-    TELEGRAM_GENERATED_INVITE_URL
+    "NOVO LINK TELEGRAM GERADO COM SUCESSO."
   );
 
-  return TELEGRAM_GENERATED_INVITE_URL;
+  return inviteLink;
 }
 
 async function ensureTable() {
@@ -531,6 +535,13 @@ async function checkAccess() {
         '<button>ENTRAR NO TELEGRAM</button>' +
         '</a>';
 
+    } else {
+
+      html +=
+        '<p class="error">' +
+        'Não foi possível gerar o link do Telegram. ' +
+        'Tente novamente.' +
+        '</p>';
     }
 
     result.innerHTML = html;
@@ -1877,3 +1888,4 @@ async function startServer() {
 }
 
 startServer();
+```
