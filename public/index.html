@@ -66,7 +66,7 @@
 
     .plan.selected {
       border: 2px solid #00ff66;
-      box-shadow: 0 0 15px rgba(0,255,102,0.15);
+      box-shadow: 0 0 15px rgba(0, 255, 102, 0.15);
     }
 
     .plan h3 {
@@ -206,6 +206,24 @@
       color: #999;
       font-size: 13px;
       margin-top: 12px;
+    }
+
+    .telegram-button {
+      display: inline-block;
+      width: 100%;
+      padding: 15px;
+      margin-top: 18px;
+      background: #229ed9;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 9px;
+      font-weight: 900;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .telegram-button:hover {
+      filter: brightness(1.08);
     }
 
     .access {
@@ -353,7 +371,9 @@
 
       <h2>Já sou assinante</h2>
 
-      <label for="accessEmail">E-mail cadastrado</label>
+      <label for="accessEmail">
+        E-mail cadastrado
+      </label>
 
       <input
         type="email"
@@ -406,6 +426,7 @@
         days: 365
       }
     };
+
 
     const planElements =
       document.querySelectorAll(".plan");
@@ -488,6 +509,7 @@
     }
 
 
+    // GERAR PIX
     generatePixButton.addEventListener(
       "click",
       async () => {
@@ -495,13 +517,16 @@
         try {
 
           const name =
-            document.getElementById("name").value.trim();
+            document.getElementById("name")
+              .value.trim();
 
           const cpf =
-            document.getElementById("cpf").value.trim();
+            document.getElementById("cpf")
+              .value.trim();
 
           const email =
-            document.getElementById("email").value.trim();
+            document.getElementById("email")
+              .value.trim();
 
 
           if (!name) {
@@ -523,35 +548,39 @@
           }
 
 
-          generatePixButton.disabled = true;
+          generatePixButton.disabled =
+            true;
 
           showStatus(
             "Gerando seu PIX, aguarde..."
           );
 
-          pixBox.style.display = "none";
+          pixBox.style.display =
+            "none";
 
-          qrCodeImage.style.display = "none";
+          qrCodeImage.style.display =
+            "none";
+
 
           const response =
-            await fetch("/api/create-payment", {
+            await fetch(
+              "/api/create-payment",
+              {
+                method: "POST",
 
-              method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
 
-              headers: {
-                "Content-Type": "application/json"
-              },
-
-              body: JSON.stringify({
-
-                name,
-                cpf,
-                email,
-                plan: selectedPlan
-
-              })
-
-            });
+                body: JSON.stringify({
+                  name,
+                  cpf,
+                  email,
+                  plan: selectedPlan
+                })
+              }
+            );
 
 
           const data =
@@ -593,30 +622,33 @@
 
               errorMessage +=
                 " | " + details;
-
             }
 
             throw new Error(
               errorMessage
             );
-
           }
 
 
-          // PIX copia e cola
+          // PIX COPIA E COLA
           if (data.qrCode) {
+
             pixCode.value =
               data.qrCode;
+
           } else if (data.pix) {
+
             pixCode.value =
               data.pix;
+
           } else {
-            pixCode.value =
-              "";
+
+            pixCode.value = "";
+
           }
 
 
-          // QR CODE COMO IMAGEM
+          // QR CODE
           if (data.qrCodeBase64) {
 
             qrCodeImage.src =
@@ -635,19 +667,24 @@
 
           paymentInfo.innerHTML =
             "Plano: <strong>" +
-            (plans[selectedPlan]?.name ||
-              selectedPlan) +
+            (
+              plans[selectedPlan]?.name ||
+              selectedPlan
+            ) +
             "</strong><br>" +
             "Valor: <strong>R$ " +
             Number(
               data.amount ||
               plans[selectedPlan].price
-            ).toFixed(2).replace(".", ",") +
+            )
+              .toFixed(2)
+              .replace(".", ",") +
             "</strong>";
 
 
           pixBox.style.display =
             "block";
+
 
           showStatus(
             "PIX gerado com sucesso! Faça o pagamento para ativar sua assinatura."
@@ -696,8 +733,8 @@
           );
 
           return;
-
         }
+
 
         try {
 
@@ -714,6 +751,7 @@
               "COPIAR PIX";
 
           }, 2000);
+
 
         } catch (error) {
 
@@ -737,7 +775,7 @@
     );
 
 
-    // ACESSO DO ASSINANTE
+    // VERIFICAR ACESSO
     const accessButton =
       document.getElementById("accessButton");
 
@@ -767,7 +805,6 @@
               "Digite seu e-mail.";
 
             return;
-
           }
 
 
@@ -802,19 +839,44 @@
           }
 
 
+          /*
+            IMPORTANTE:
+            O servidor retorna:
+            data.active
+            data.telegram
+
+            Portanto usamos data.telegram
+            aqui para criar o botão.
+          */
+
           if (
             data.active &&
-            data.telegramInviteUrl
+            data.telegram
           ) {
 
             accessStatus.innerHTML =
-              "✅ Acesso ativo!<br><br>" +
-              "<a href=\"" +
-              data.telegramInviteUrl +
-              "\" target=\"_blank\" " +
-              "style=\"color:#00ff66;font-weight:bold;\">" +
-              "ENTRAR NO TELEGRAM" +
+              "✅ <strong>Assinatura ativa!</strong>" +
+              "<br><br>" +
+              "Seu acesso está liberado." +
+              "<a " +
+              "href=\"" +
+              data.telegram +
+              "\" " +
+              "target=\"_blank\" " +
+              "rel=\"noopener noreferrer\" " +
+              "class=\"telegram-button\">" +
+              "✈️ ENTRAR NO TELEGRAM" +
               "</a>";
+
+
+          } else if (data.active) {
+
+            accessStatus.innerHTML =
+              "✅ <strong>Assinatura ativa!</strong>" +
+              "<br><br>" +
+              "Sua assinatura foi confirmada, " +
+              "mas o link do Telegram não está disponível no momento.";
+
 
           } else {
 
@@ -833,6 +895,7 @@
           accessStatus.textContent =
             "Erro: " +
             error.message;
+
 
         } finally {
 
