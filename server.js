@@ -19,7 +19,7 @@ const pool = new Pool({
   }
 });
 
-const MP_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
+const MP_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || "";
 
 const TELEGRAM_BOT_TOKEN =
   (process.env.TELEGRAM_BOT_TOKEN || "").trim();
@@ -58,7 +58,6 @@ function addDays(date, days) {
 ========================================================= */
 
 async function getTelegramInviteUrl() {
-
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     throw new Error(
       "TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurado."
@@ -85,7 +84,6 @@ async function getTelegramInviteUrl() {
   const data = await response.json();
 
   if (!response.ok || !data.ok) {
-
     console.error(
       "ERRO AO CRIAR LINK TELEGRAM:",
       data
@@ -97,8 +95,7 @@ async function getTelegramInviteUrl() {
     );
   }
 
-  const inviteLink =
-    data.result?.invite_link;
+  const inviteLink = data?.result?.invite_link;
 
   if (!inviteLink) {
     throw new Error(
@@ -112,6 +109,10 @@ async function getTelegramInviteUrl() {
 
   return inviteLink;
 }
+
+/* =========================================================
+   BANCO DE DADOS
+========================================================= */
 
 async function ensureTable() {
   await pool.query(`
@@ -133,6 +134,7 @@ async function ensureTable() {
 
   console.log("Tabela payments verificada com sucesso.");
 }
+
 /* =========================================================
    PÁGINA PRINCIPAL
 ========================================================= */
@@ -371,7 +373,6 @@ function selectPlan(plan) {
 }
 
 async function createPayment() {
-
   const name =
     document.getElementById("name").value.trim();
 
@@ -393,7 +394,6 @@ async function createPayment() {
   result.innerHTML = "Gerando PIX...";
 
   try {
-
     const response = await fetch(
       "/api/create-payment",
       {
@@ -424,16 +424,13 @@ async function createPayment() {
       '<h3 class="success">PIX gerado!</h3>';
 
     if (data.qrCodeBase64) {
-
       html +=
         '<img class="qr" src="data:image/png;base64,' +
         data.qrCodeBase64 +
         '">';
-
     }
 
     if (data.qrCode) {
-
       html +=
         '<div class="pix-code">' +
         data.qrCode +
@@ -453,7 +450,6 @@ async function createPayment() {
     result.innerHTML = html;
 
   } catch (error) {
-
     console.error(error);
 
     result.innerHTML =
@@ -462,21 +458,15 @@ async function createPayment() {
 }
 
 async function copyPix(code) {
-
   try {
-
     await navigator.clipboard.writeText(code);
-
     alert("PIX copiado!");
-
   } catch (error) {
-
     alert("Não foi possível copiar automaticamente.");
   }
 }
 
 async function checkAccess() {
-
   const email =
     document.getElementById("accessEmail").value.trim();
 
@@ -484,17 +474,14 @@ async function checkAccess() {
     document.getElementById("accessResult");
 
   if (!email) {
-
     result.innerHTML =
       '<p class="error">Digite seu e-mail.</p>';
-
     return;
   }
 
   result.innerHTML = "Verificando...";
 
   try {
-
     const response = await fetch(
       "/api/access?email=" +
       encodeURIComponent(email)
@@ -503,13 +490,11 @@ async function checkAccess() {
     const data = await response.json();
 
     if (!data.active) {
-
       result.innerHTML =
         '<p class="error">' +
         (data.message ||
           "Nenhuma assinatura ativa encontrada.") +
         '</p>';
-
       return;
     }
 
@@ -527,16 +512,13 @@ async function checkAccess() {
       '</strong></p>';
 
     if (data.telegram) {
-
       html +=
         '<a href="' +
         data.telegram +
         '" target="_blank" style="text-decoration:none">' +
         '<button>ENTRAR NO TELEGRAM</button>' +
         '</a>';
-
     } else {
-
       html +=
         '<p class="error">' +
         'Não foi possível gerar o link do Telegram. ' +
@@ -547,7 +529,6 @@ async function checkAccess() {
     result.innerHTML = html;
 
   } catch (error) {
-
     console.error(error);
 
     result.innerHTML =
@@ -567,16 +548,12 @@ async function checkAccess() {
 ========================================================= */
 
 app.post("/api/create-payment", async (req, res) => {
-
   try {
-
     if (!MP_TOKEN) {
-
       return res.status(500).json({
         success: false,
         message: "Token do Mercado Pago não configurado."
       });
-
     }
 
     const {
@@ -586,7 +563,8 @@ app.post("/api/create-payment", async (req, res) => {
       plan
     } = req.body;
 
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail =
+      normalizeEmail(email);
 
     if (
       !name ||
@@ -595,12 +573,10 @@ app.post("/api/create-payment", async (req, res) => {
       !PLAN_DAYS[plan] ||
       !PLAN_PRICES[plan]
     ) {
-
       return res.status(400).json({
         success: false,
         message: "Dados inválidos."
       });
-
     }
 
     const externalReference =
@@ -613,7 +589,6 @@ app.post("/api/create-payment", async (req, res) => {
         .toUpperCase();
 
     const paymentData = {
-
       transaction_amount:
         PLAN_PRICES[plan],
 
@@ -631,58 +606,46 @@ app.post("/api/create-payment", async (req, res) => {
 
       external_reference:
         externalReference
-
     };
 
     const response = await fetch(
       "https://api.mercadopago.com/v1/payments",
       {
-
         method: "POST",
 
         headers: {
-
           "Content-Type": "application/json",
-
           "Authorization":
             "Bearer " + MP_TOKEN,
-
           "X-Idempotency-Key":
             externalReference
-
         },
 
         body:
           JSON.stringify(paymentData)
-
       }
     );
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
     if (!response.ok) {
-
       console.error(
         "ERRO MERCADO PAGO:",
         data
       );
 
       return res.status(response.status).json({
-
         success: false,
-
         message:
           data.message ||
           "Erro ao criar pagamento."
-
       });
-
     }
 
     const transactionData =
       data.point_of_interaction &&
-      data.point_of_interaction
-        .transaction_data;
+      data.point_of_interaction.transaction_data;
 
     const qrCode =
       transactionData &&
@@ -720,41 +683,28 @@ app.post("/api/create-payment", async (req, res) => {
     );
 
     return res.json({
-
       success: true,
-
       paymentId:
         String(data.id),
-
       qrCode,
-
       qrCodeBase64,
-
       status:
         data.status,
-
       externalReference
-
     });
 
   } catch (error) {
-
     console.error(
       "ERRO CREATE PAYMENT:",
       error
     );
 
     return res.status(500).json({
-
       success: false,
-
       message:
         "Erro interno ao criar pagamento."
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -762,40 +712,32 @@ app.post("/api/create-payment", async (req, res) => {
 ========================================================= */
 
 app.post("/api/mercadopago/webhook", async (req, res) => {
-
   try {
-
     const paymentId =
       req.body?.data?.id ||
       req.query?.id;
 
     if (!paymentId) {
-
       return res.json({
         success: true
       });
-
     }
 
     const response = await fetch(
       "https://api.mercadopago.com/v1/payments/" +
       paymentId,
       {
-
         headers: {
           Authorization:
             "Bearer " + MP_TOKEN
         }
-
       }
     );
 
     if (!response.ok) {
-
       return res.json({
         success: true
       });
-
     }
 
     const payment =
@@ -827,8 +769,10 @@ app.post("/api/mercadopago/webhook", async (req, res) => {
       existing.rows[0]?.plan ||
       "mensal";
 
-    if (!existing.rows.length && externalReference) {
-
+    if (
+      !existing.rows.length &&
+      externalReference
+    ) {
       const refResult =
         await pool.query(
           `
@@ -849,12 +793,10 @@ app.post("/api/mercadopago/webhook", async (req, res) => {
     }
 
     if (existing.rows.length) {
-
       const current =
         existing.rows[0];
 
       if (status === "approved") {
-
         const approvedAt =
           payment.date_approved
             ? new Date(payment.date_approved)
@@ -885,7 +827,6 @@ app.post("/api/mercadopago/webhook", async (req, res) => {
         );
 
       } else {
-
         await pool.query(
           `
           UPDATE payments
@@ -897,9 +838,7 @@ app.post("/api/mercadopago/webhook", async (req, res) => {
             current.id
           ]
         );
-
       }
-
     }
 
     return res.json({
@@ -907,7 +846,6 @@ app.post("/api/mercadopago/webhook", async (req, res) => {
     });
 
   } catch (error) {
-
     console.error(
       "WEBHOOK ERROR:",
       error
@@ -916,9 +854,7 @@ app.post("/api/mercadopago/webhook", async (req, res) => {
     return res.json({
       success: true
     });
-
   }
-
 });
 
 /* =========================================================
@@ -926,25 +862,17 @@ app.post("/api/mercadopago/webhook", async (req, res) => {
 ========================================================= */
 
 app.get("/api/access", async (req, res) => {
-
   try {
-
     const email =
       normalizeEmail(req.query.email);
 
     if (!email) {
-
       return res.status(400).json({
-
         success: false,
-
         active: false,
-
         message:
           "Informe o e-mail."
-
       });
-
     }
 
     console.log(
@@ -975,79 +903,55 @@ app.get("/api/access", async (req, res) => {
     );
 
     if (result.rows.length) {
-
       const payment =
         result.rows[0];
 
       let telegramInviteUrl = null;
 
       try {
-
         telegramInviteUrl =
           await getTelegramInviteUrl();
-
       } catch (telegramError) {
-
         console.error(
           "ERRO AO GERAR CONVITE TELEGRAM:",
           telegramError
         );
-
       }
 
       return res.json({
-
         success: true,
-
         active: true,
-
         plan:
           payment.plan,
-
         amount:
           Number(payment.amount),
-
         activeUntil:
           payment.active_until,
-
         telegram:
           telegramInviteUrl
-
       });
-
     }
 
     return res.json({
-
       success: true,
-
       active: false,
-
       message:
         "Nenhuma assinatura ativa encontrada."
-
     });
 
   } catch (error) {
-
     console.error(
       "ACCESS ERROR:",
       error
     );
 
     return res.status(500).json({
-
       success: false,
-
       active: false,
-
       message:
         "Erro interno ao verificar assinatura."
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1055,9 +959,7 @@ app.get("/api/access", async (req, res) => {
 ========================================================= */
 
 app.get("/api/fix-access", async (req, res) => {
-
   try {
-
     const email =
       normalizeEmail(req.query.email);
 
@@ -1067,16 +969,11 @@ app.get("/api/fix-access", async (req, res) => {
       ).trim();
 
     if (!email || !paymentId) {
-
       return res.status(400).json({
-
         success: false,
-
         message:
           "Informe email e paymentId."
-
       });
-
     }
 
     const result =
@@ -1099,16 +996,11 @@ app.get("/api/fix-access", async (req, res) => {
       );
 
     if (result.rowCount === 0) {
-
       return res.status(404).json({
-
         success: false,
-
         message:
           "Pagamento não encontrado no banco."
-
       });
-
     }
 
     const payment =
@@ -1117,64 +1009,45 @@ app.get("/api/fix-access", async (req, res) => {
     let telegramInviteUrl = null;
 
     try {
-
       telegramInviteUrl =
         await getTelegramInviteUrl();
-
     } catch (telegramError) {
-
       console.error(
         "ERRO AO GERAR CONVITE TELEGRAM:",
         telegramError
       );
-
     }
 
     return res.json({
-
       success: true,
-
       message:
         "E-mail vinculado à assinatura com sucesso.",
-
       paymentId:
         payment.payment_id,
-
       plan:
         payment.plan,
-
       amount:
         Number(payment.amount),
-
       status:
         payment.status,
-
       activeUntil:
         payment.active_until,
-
       telegram:
         telegramInviteUrl
-
     });
 
   } catch (error) {
-
     console.error(
       "ERRO AO CORRIGIR ACESSO:",
       error
     );
 
     return res.status(500).json({
-
       success: false,
-
       message:
         "Erro interno ao corrigir acesso."
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1182,9 +1055,7 @@ app.get("/api/fix-access", async (req, res) => {
 ========================================================= */
 
 app.get("/api/debug-access", async (req, res) => {
-
   try {
-
     const email =
       normalizeEmail(req.query.email);
 
@@ -1206,33 +1077,22 @@ app.get("/api/debug-access", async (req, res) => {
       );
 
     return res.json({
-
       success: true,
-
       email_recebido:
         email,
-
       quantidade_registros:
         result.rows.length,
-
       registros:
         result.rows
-
     });
 
   } catch (error) {
-
     return res.status(500).json({
-
       success: false,
-
       message:
         error.message
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1240,25 +1100,18 @@ app.get("/api/debug-access", async (req, res) => {
 ========================================================= */
 
 app.get("/api/recover-payment-by-id", async (req, res) => {
-
   try {
-
     const paymentId =
       String(
         req.query.id || ""
       ).trim();
 
     if (!paymentId) {
-
       return res.status(400).json({
-
         success: false,
-
         message:
           "Informe o ID do pagamento."
-
       });
-
     }
 
     const response =
@@ -1266,12 +1119,10 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
         "https://api.mercadopago.com/v1/payments/" +
         paymentId,
         {
-
           headers: {
             Authorization:
               "Bearer " + MP_TOKEN
           }
-
         }
       );
 
@@ -1279,35 +1130,23 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
       await response.json();
 
     if (!response.ok) {
-
       return res.status(response.status).json({
-
         success: false,
-
         message:
           payment.message ||
           "Pagamento não encontrado."
-
       });
-
     }
 
     if (payment.status !== "approved") {
-
       return res.json({
-
         success: false,
-
         recovered: false,
-
         message:
           "Pagamento ainda não está aprovado.",
-
         status:
           payment.status
-
       });
-
     }
 
     const email =
@@ -1329,8 +1168,10 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
         [paymentId]
       );
 
-    if (!existing.rows.length && externalReference) {
-
+    if (
+      !existing.rows.length &&
+      externalReference
+    ) {
       existing =
         await pool.query(
           `
@@ -1341,7 +1182,6 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
           `,
           [externalReference]
         );
-
     }
 
     const plan =
@@ -1360,7 +1200,6 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
       );
 
     if (existing.rows.length) {
-
       await pool.query(
         `
         UPDATE payments
@@ -1388,7 +1227,6 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
       );
 
     } else {
-
       await pool.query(
         `
         INSERT INTO payments (
@@ -1419,71 +1257,49 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
           activeUntil
         ]
       );
-
     }
 
     let telegramInviteUrl = null;
 
     try {
-
       telegramInviteUrl =
         await getTelegramInviteUrl();
-
     } catch (telegramError) {
-
       console.error(
         "ERRO AO GERAR CONVITE TELEGRAM:",
         telegramError
       );
-
     }
 
     return res.json({
-
       success: true,
-
       recovered: true,
-
       message:
         "Pagamento aprovado recuperado com sucesso.",
-
       paymentId,
-
       status:
         payment.status,
-
       plan,
-
       amount:
         payment.transaction_amount,
-
       email,
-
       activeUntil,
-
       telegram:
         telegramInviteUrl
-
     });
 
   } catch (error) {
-
     console.error(
       "RECOVER ERROR:",
       error
     );
 
     return res.status(500).json({
-
       success: false,
-
       message:
         error.message
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1491,19 +1307,15 @@ app.get("/api/recover-payment-by-id", async (req, res) => {
 ========================================================= */
 
 app.get("/api/mercadopago-payments", async (req, res) => {
-
   try {
-
     const response =
       await fetch(
         "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=20",
         {
-
           headers: {
             Authorization:
               "Bearer " + MP_TOKEN
           }
-
         }
       );
 
@@ -1511,78 +1323,52 @@ app.get("/api/mercadopago-payments", async (req, res) => {
       await response.json();
 
     if (!response.ok) {
-
       return res.status(response.status).json({
-
         success: false,
-
         message:
           data.message ||
           "Erro ao consultar pagamentos."
-
       });
-
     }
 
     const payments =
       (data.results || []).map(payment => ({
-
         id:
           payment.id,
-
         status:
           payment.status,
-
         statusDetail:
           payment.status_detail,
-
         amount:
           payment.transaction_amount,
-
         description:
           payment.description,
-
         dateCreated:
           payment.date_created,
-
         dateApproved:
           payment.date_approved,
-
         email:
           payment.payer?.email || null,
-
         externalReference:
           payment.external_reference,
-
         paymentMethod:
           payment.payment_method_id
-
       }));
 
     return res.json({
-
       success: true,
-
       total:
         payments.length,
-
       payments
-
     });
 
   } catch (error) {
-
     return res.status(500).json({
-
       success: false,
-
       message:
         error.message
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1590,21 +1376,15 @@ app.get("/api/mercadopago-payments", async (req, res) => {
 ========================================================= */
 
 app.get("/api/mercadopago-test", async (req, res) => {
-
   try {
-
     const response =
       await fetch(
         "https://api.mercadopago.com/v1/payment_methods",
         {
-
           headers: {
-
             Authorization:
               "Bearer " + MP_TOKEN
-
           }
-
         }
       );
 
@@ -1612,52 +1392,35 @@ app.get("/api/mercadopago-test", async (req, res) => {
       await response.json();
 
     if (!response.ok) {
-
       return res.status(response.status).json({
-
         success: false,
-
         httpStatus:
           response.status,
-
         message:
           data.message ||
           "Token recusado."
-
       });
-
     }
 
     return res.json({
-
       success: true,
-
       httpStatus:
         response.status,
-
       message:
         "Token aceito pelo Mercado Pago.",
-
       paymentMethods:
         Array.isArray(data)
           ? data.length
           : 0
-
     });
 
   } catch (error) {
-
     return res.status(500).json({
-
       success: false,
-
       message:
         error.message
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1665,13 +1428,11 @@ app.get("/api/mercadopago-test", async (req, res) => {
 ========================================================= */
 
 app.get("/api/config-test", (req, res) => {
-
   const token =
     process.env.MERCADOPAGO_ACCESS_TOKEN ||
     "";
 
   res.json({
-
     server:
       "online",
 
@@ -1707,9 +1468,7 @@ app.get("/api/config-test", (req, res) => {
 
     message:
       "Configuração carregada com sucesso."
-
   });
-
 });
 
 /* =========================================================
@@ -1717,9 +1476,7 @@ app.get("/api/config-test", (req, res) => {
 ========================================================= */
 
 app.get("/api/payment-diagnose", async (req, res) => {
-
   try {
-
     const db =
       await pool.query(
         `
@@ -1733,12 +1490,10 @@ app.get("/api/payment-diagnose", async (req, res) => {
       await fetch(
         "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=20",
         {
-
           headers: {
             Authorization:
               "Bearer " + MP_TOKEN
           }
-
         }
       );
 
@@ -1746,65 +1501,43 @@ app.get("/api/payment-diagnose", async (req, res) => {
       await mpResponse.json();
 
     return res.json({
-
       success: true,
-
       total:
         db.rows.length,
-
       databasePayment:
         db.rows[0] || null,
-
       payments:
         (mpData.results || []).map(payment => ({
-
           id:
             payment.id,
-
           status:
             payment.status,
-
           statusDetail:
             payment.status_detail,
-
           amount:
             payment.transaction_amount,
-
           description:
             payment.description,
-
           dateCreated:
             payment.date_created,
-
           dateApproved:
             payment.date_approved,
-
           email:
             payment.payer?.email || null,
-
           externalReference:
             payment.external_reference,
-
           paymentMethod:
             payment.payment_method_id
-
         }))
-
     });
 
   } catch (error) {
-
     return res.status(500).json({
-
       success: false,
-
       message:
         error.message
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1812,44 +1545,30 @@ app.get("/api/payment-diagnose", async (req, res) => {
 ========================================================= */
 
 app.get("/api/health", async (req, res) => {
-
   try {
-
     await pool.query(
       "SELECT 1"
     );
 
     return res.json({
-
       success: true,
-
       server:
         "online",
-
       database:
         "online"
-
     });
 
   } catch (error) {
-
     return res.status(500).json({
-
       success: false,
-
       server:
         "online",
-
       database:
         "offline",
-
       error:
         error.message
-
     });
-
   }
-
 });
 
 /* =========================================================
@@ -1857,35 +1576,27 @@ app.get("/api/health", async (req, res) => {
 ========================================================= */
 
 async function startServer() {
-
   try {
-
     await ensureTable();
 
     app.listen(
       PORT,
       () => {
-
         console.log(
           "Servidor online na porta " +
           PORT
         );
-
       }
     );
 
   } catch (error) {
-
     console.error(
       "ERRO AO INICIAR SERVIDOR:",
       error
     );
 
     process.exit(1);
-
   }
-
 }
 
 startServer();
-```
