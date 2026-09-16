@@ -6,116 +6,134 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-
 const PORT = process.env.PORT || 3000;
 
-const BASE_URL = (
-  process.env.BASE_URL ||
-  `http://localhost:${PORT}`
-).trim();
-
-const MERCADOPAGO_ACCESS_TOKEN = (
-  process.env.MERCADOPAGO_ACCESS_TOKEN || ""
-).trim();
-
-const TELEGRAM_INVITE_URL = (
-  process.env.TELEGRAM_INVITE_URL || ""
-).trim();
-
-const PIX_ENABLED =
-  String(process.env.PIX_ENABLED || "true")
-    .trim()
-    .toLowerCase() === "true";
-
-
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
+const MERCADO_PAGO_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
+const BASE_URL =
+  process.env.BASE_URL || `http://localhost:${PORT}`;
 
-/* =====================================================
-   BANCO DE DADOS
-===================================================== */
+const PIX_ENABLED =
+  String(process.env.PIX_ENABLED || "true").toLowerCase() === "true";
 
-const db = new Database("baiano-tips.db");
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cpf TEXT,
-    order_id TEXT,
-    external_reference TEXT,
-    name TEXT,
-    email TEXT,
-    plan TEXT,
-    amount REAL,
-    status TEXT,
-    active_until TEXT,
-    created_at TEXT
-  )
-`);
-
-
-/* Compatibilidade com banco antigo */
-
-try {
-  db.exec(`
-    ALTER TABLE payments
-    ADD COLUMN external_reference TEXT
-  `);
-} catch (error) {
-  // Coluna já existe.
-}
-
-
-/* =====================================================
-   PLANOS
-===================================================== */
+const TELEGRAM_INVITE_URL =
+  process.env.TELEGRAM_INVITE_URL || "";
 
 const plans = {
   mensal: {
     name: "Mensal",
-    amount: 29.90,
+    price: 29.90,
     days: 30
   },
-
   trimestral: {
     name: "Trimestral",
-    amount: 69.90,
+    price: 69.90,
     days: 90
   },
-
   semestral: {
     name: "Semestral",
-    amount: 119.90,
+    price: 119.90,
     days: 180
   },
-
   anual: {
     name: "Anual",
-    amount: 199.90,
+    price: 199.90,
     days: 365
   }
 };
 
+// ======================================================
+// BANCO DE DADOS
+// ======================================================
 
-/* =====================================================
-   CPF
-===================================================== */
+const db = new Database("baiano-tips.db");
 
-function cleanCPF(cpf) {
-  return String(cpf || "").replace(/\D/g, "");
+db.pragma("journal_mode = WAL");
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_id TEXT UNIQUE,
+    external_reference TEXT,
+    name TEXT,
+    cpf TEXT,
+    email TEXT,
+    plan TEXT,
+    amount REAL,
+    status TEXT,
+    created_at TEXT,
+    approved_at TEXT,
+    active_until TEXT
+  )
+`);
+
+function addColumnIfMissing(table, column, definition) {
+  try {
+    const columns = db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all();
+
+    const exists = columns.some(
+      (col) => col.name === column
+    );
+
+    if (!exists) {
+      db.exec(
+        `ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `Erro verificando coluna ${column}:`,
+      error.message
+    );
+  }
 }
 
+addColumnIfMissing(
+  "payments",
+  "external_reference",
+  "TEXT"
+);
 
-function validCPF(cpf) {
+addColumnIfMissing(
+  "payments",
+  "approved_at",
+  "TEXT"
+);
 
-  cpf = cleanCPF(cpf);
+addColumnIfMissing(
+  "payments",
+  "active_until",
+  "TEXT"
+);
+
+// ======================================================
+// FUNÇÕES AUXILIARES
+// ======================================================
+
+function normalizeEmail(email) {
+  return String(email || "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeCPF(cpf) {
+  return String(cpf || "")
+    .replace(/\D/g, "");
+}
+
+function isValidCPF(cpf) {
+  cpf = normalizeCPF(cpf);
 
   if (cpf.length !== 11) {
     return false;
   }
 
-  if (/^(\d)\1{10}$/.test(cpf)) {
+  if (/^(\d)\1+$/.test(cpf)) {
     return false;
   }
 
@@ -125,13 +143,13 @@ function validCPF(cpf) {
     sum += Number(cpf[i]) * (10 - i);
   }
 
-  let digit1 = 11 - (sum % 11);
+  let remainder = (sum * 10) % 11;
 
-  if (digit1 >= 10) {
-    digit1 = 0;
+  if (remainder === 10) {
+    remainder = 0;
   }
 
-  if (digit1 !== Number(cpf[9])) {
+  if (remainder !== Number(cpf[9])) {
     return false;
   }
 
@@ -141,58 +159,130 @@ function validCPF(cpf) {
     sum += Number(cpf[i]) * (11 - i);
   }
 
-  let digit2 = 11 - (sum % 11);
+  remainder = (sum * 10) % 11;
 
-  if (digit2 >= 10) {
-    digit2 = 0;
+  if (remainder === 10) {
+    remainder = 0;
   }
 
-  return digit2 === Number(cpf[10]);
+  return remainder === Number(cpf[10]);
 }
 
+function formatAmount(value) {
+  return Number(value || 0)
+    .toFixed(2);
+}
 
-/* =====================================================
-   MERCADO PAGO REQUEST
-===================================================== */
+function maskEmail(email) {
+  const value = normalizeEmail(email);
 
-async function mercadoPagoRequest(url, options = {}) {
+  if (!value || !value.includes("@")) {
+    return null;
+  }
 
-  if (!MERCADOPAGO_ACCESS_TOKEN) {
+  const [name, domain] = value.split("@");
+
+  if (name.length <= 2) {
+    return `**@${domain}`;
+  }
+
+  return (
+    name.substring(0, 2) +
+    "***@" +
+    domain
+  );
+}
+
+function getPlanFromPayment(payment) {
+  const description = String(
+    payment?.description || ""
+  ).toLowerCase();
+
+  const amount = Number(
+    payment?.transaction_amount || 0
+  );
+
+  if (
+    description.includes("anual") ||
+    Math.abs(amount - plans.anual.price) < 0.01
+  ) {
+    return "anual";
+  }
+
+  if (
+    description.includes("semestral") ||
+    Math.abs(amount - plans.semestral.price) < 0.01
+  ) {
+    return "semestral";
+  }
+
+  if (
+    description.includes("trimestral") ||
+    Math.abs(amount - plans.trimestral.price) < 0.01
+  ) {
+    return "trimestral";
+  }
+
+  if (
+    description.includes("mensal") ||
+    Math.abs(amount - plans.mensal.price) < 0.01
+  ) {
+    return "mensal";
+  }
+
+  return null;
+}
+
+function calculateActiveUntil(planKey, approvedDate) {
+  const plan = plans[planKey];
+
+  if (!plan) {
+    return null;
+  }
+
+  const date = new Date(
+    approvedDate || new Date()
+  );
+
+  date.setDate(
+    date.getDate() + plan.days
+  );
+
+  return date.toISOString();
+}
+
+// ======================================================
+// MERCADO PAGO
+// ======================================================
+
+async function mercadoPagoRequest(
+  path,
+  options = {}
+) {
+  if (!MERCADO_PAGO_TOKEN) {
     throw new Error(
-      "MERCADOPAGO_ACCESS_TOKEN não está configurado."
+      "MERCADOPAGO_ACCESS_TOKEN não configurado."
     );
   }
 
-  const headers = new Headers(
-    options.headers || {}
-  );
-
-  headers.set(
-    "Accept",
-    "application/json"
-  );
-
-  headers.set(
-    "Content-Type",
-    "application/json"
-  );
-
-  headers.set(
-    "Authorization",
-    `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`
-  );
-
   const response = await fetch(
-    url,
+    `https://api.mercadopago.com${path}`,
     {
-      ...options,
-      headers
+      method: options.method || "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${MERCADO_PAGO_TOKEN}`,
+        ...(options.headers || {})
+      },
+      body: options.body
+        ? JSON.stringify(options.body)
+        : undefined
     }
   );
 
   const text = await response.text();
 
-  let data;
+  let data = {};
 
   try {
     data = text ? JSON.parse(text) : {};
@@ -202,154 +292,25 @@ async function mercadoPagoRequest(url, options = {}) {
     };
   }
 
-  if (!response.ok) {
-
-    console.error(
-      "Mercado Pago HTTP:",
-      response.status
-    );
-
-    console.error(
-      "Mercado Pago:",
-      JSON.stringify(data, null, 2)
-    );
-
-    throw new Error(
-      data?.message ||
-      data?.error ||
-      data?.raw ||
-      `Erro Mercado Pago HTTP ${response.status}`
-    );
-  }
-
-  return data;
-}
-
-
-/* =====================================================
-   TESTE MERCADO PAGO
-===================================================== */
-
-app.get(
-  "/api/mercadopago-test",
-  async (req, res) => {
-
-    try {
-
-      const response =
-        await mercadoPagoRequest(
-          "https://api.mercadopago.com/v1/payment_methods",
-          {
-            method: "GET"
-          }
-        );
-
-      return res.json({
-        success: true,
-        httpStatus: 200,
-        message:
-          "Token aceito pelo Mercado Pago.",
-        paymentMethods:
-          Array.isArray(response)
-            ? response.length
-            : null
-      });
-
-    } catch (error) {
-
-      return res.status(500).json({
-        success: false,
-        message:
-          error.message
-      });
-    }
-  }
-);
-
-
-/* =====================================================
-   CRIAR PIX
-===================================================== */
-
-async function createMercadoPagoPix({
-  name,
-  email,
-  cpf,
-  amount,
-  description,
-  externalReference
-}) {
-
-  const idempotencyKey =
-    crypto.randomUUID();
-
-  const body = {
-
-    transaction_amount:
-      Number(amount),
-
-    description,
-
-    payment_method_id:
-      "pix",
-
-    payer: {
-
-      email,
-
-      first_name:
-        String(name)
-          .trim()
-          .split(" ")[0] ||
-        "Cliente",
-
-      identification: {
-        type: "CPF",
-        number:
-          cleanCPF(cpf)
-      }
-    },
-
-    external_reference:
-      externalReference,
-
-    notification_url:
-      `${BASE_URL}/api/mercadopago/webhook`
+  return {
+    ok: response.ok,
+    status: response.status,
+    data
   };
-
-  return await mercadoPagoRequest(
-    "https://api.mercadopago.com/v1/payments",
-    {
-      method: "POST",
-
-      headers: {
-        "X-Idempotency-Key":
-          idempotencyKey
-      },
-
-      body:
-        JSON.stringify(body)
-    }
-  );
 }
 
-
-/* =====================================================
-   CRIAR PAGAMENTO
-===================================================== */
+// ======================================================
+// CRIAR PAGAMENTO PIX
+// ======================================================
 
 app.post(
   "/api/create-payment",
   async (req, res) => {
-
     try {
-
       if (!PIX_ENABLED) {
-
         return res.status(503).json({
           success: false,
-          message:
-            "PIX está desativado."
+          message: "PIX está desativado."
         });
       }
 
@@ -360,896 +321,434 @@ app.post(
         plan
       } = req.body;
 
-      if (
-        !name ||
-        !cpf ||
-        !email ||
-        !plan
-      ) {
-
+      if (!name || !email || !cpf || !plan) {
         return res.status(400).json({
           success: false,
           message:
-            "Preencha nome, CPF, e-mail e plano."
-        });
-      }
-
-      const cleanCpf =
-        cleanCPF(cpf);
-
-      if (!validCPF(cleanCpf)) {
-
-        return res.status(400).json({
-          success: false,
-          message:
-            "CPF inválido."
+            "Nome, CPF, e-mail e plano são obrigatórios."
         });
       }
 
       if (!plans[plan]) {
-
         return res.status(400).json({
           success: false,
-          message:
-            "Plano inválido."
+          message: "Plano inválido."
         });
       }
 
-      const selectedPlan =
-        plans[plan];
+      const cleanCPF = normalizeCPF(cpf);
+      const cleanEmail = normalizeEmail(email);
+
+      if (!isValidCPF(cleanCPF)) {
+        return res.status(400).json({
+          success: false,
+          message: "CPF inválido."
+        });
+      }
+
+      if (
+        !cleanEmail.includes("@") ||
+        cleanEmail.length < 5
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "E-mail inválido."
+        });
+      }
+
+      const selectedPlan = plans[plan];
 
       const externalReference =
         `BAIANOTIPS-${Date.now()}-${crypto
-          .randomBytes(4)
-          .toString("hex")
-          .toUpperCase()}`;
+          .randomBytes(5)
+          .toString("hex")}`;
 
-      console.log(
-        "CRIANDO PIX:",
-        externalReference
-      );
+      const idempotencyKey =
+        crypto.randomUUID();
 
-      const payment =
-        await createMercadoPagoPix({
+      const paymentPayload = {
+        transaction_amount:
+          selectedPlan.price,
 
-          name,
+        description:
+          `Baiano Tips - ${selectedPlan.name}`,
 
-          email,
+        payment_method_id: "pix",
 
-          cpf: cleanCpf,
+        payer: {
+          email: cleanEmail,
+          first_name: String(name).trim()
+        },
 
-          amount:
-            selectedPlan.amount,
+        external_reference:
+          externalReference,
 
-          description:
-            `Baiano Tips - ${selectedPlan.name}`,
+        notification_url:
+          `${BASE_URL}/api/mercadopago/webhook`
+      };
 
-          externalReference
-        });
+      if (cleanCPF) {
+        paymentPayload.payer.identification = {
+          type: "CPF",
+          number: cleanCPF
+        };
+      }
 
-      const transactionData =
-        payment
-          ?.point_of_interaction
-          ?.transaction_data;
+      const result =
+        await mercadoPagoRequest(
+          "/v1/payments",
+          {
+            method: "POST",
+            headers: {
+              "X-Idempotency-Key":
+                idempotencyKey
+            },
+            body: paymentPayload
+          }
+        );
 
-      const qrCode =
-        transactionData?.qr_code ||
-        null;
+      if (!result.ok) {
+        console.error(
+          "Erro Mercado Pago:",
+          result.status,
+          result.data
+        );
 
-      const qrCodeBase64 =
-        transactionData?.qr_code_base64 ||
-        null;
-
-      const paymentId =
-        payment?.id
-          ? String(payment.id)
-          : "";
-
-      if (
-        !paymentId ||
-        !qrCode
-      ) {
-
-        return res.status(500).json({
+        return res.status(
+          result.status
+        ).json({
           success: false,
           message:
-            "Mercado Pago não retornou os dados do PIX."
+            result.data?.message ||
+            "Erro ao criar pagamento.",
+          error:
+            result.data
         });
       }
 
+      const payment =
+        result.data;
+
+      const paymentId =
+        String(payment.id);
+
+      const qrCode =
+        payment.point_of_interaction
+          ?.transaction_data
+          ?.qr_code || null;
+
+      const qrCodeBase64 =
+        payment.point_of_interaction
+          ?.transaction_data
+          ?.qr_code_base64 || null;
+
+      const createdAt =
+        payment.date_created ||
+        new Date().toISOString();
+
       db.prepare(`
-        INSERT INTO payments (
-          cpf,
-          order_id,
+        INSERT OR REPLACE INTO payments (
+          payment_id,
           external_reference,
           name,
+          cpf,
           email,
           plan,
           amount,
           status,
-          active_until,
-          created_at
+          created_at,
+          approved_at,
+          active_until
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-
-        cleanCpf,
-
-        paymentId,
-
-        externalReference,
-
-        name,
-
-        email,
-
+        VALUES (
+          @payment_id,
+          @external_reference,
+          @name,
+          @cpf,
+          @email,
+          @plan,
+          @amount,
+          @status,
+          @created_at,
+          @approved_at,
+          @active_until
+        )
+      `).run({
+        payment_id: paymentId,
+        external_reference:
+          externalReference,
+        name: String(name).trim(),
+        cpf: cleanCPF,
+        email: cleanEmail,
         plan,
-
-        selectedPlan.amount,
-
-        payment.status || "pending",
-
-        null,
-
-        new Date().toISOString()
-      );
-
-      console.log(
-        "PAGAMENTO SALVO:",
-        paymentId
-      );
+        amount: selectedPlan.price,
+        status:
+          payment.status || "pending",
+        created_at: createdAt,
+        approved_at: null,
+        active_until: null
+      });
 
       return res.json({
-
         success: true,
-
         paymentId,
-
-        orderId:
-          paymentId,
-
-        externalReference,
-
-        status:
-          payment.status ||
-          "pending",
-
-        pix:
-          qrCode,
-
+        status: payment.status,
         qrCode,
-
-        qrCodeBase64:
-          qrCodeBase64
-            ? `data:image/png;base64,${qrCodeBase64}`
-            : null,
-
-        amount:
-          selectedPlan.amount,
-
-        plan,
-
-        message:
-          "PIX criado com sucesso."
+        qrCodeBase64,
+        pix: qrCode,
+        externalReference
       });
 
     } catch (error) {
-
       console.error(
-        "ERRO CREATE PAYMENT:",
+        "Erro create-payment:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          error.message ||
-          "Não foi possível gerar o PIX."
+          "Erro interno ao criar pagamento."
       });
     }
   }
 );
 
-
-/* =====================================================
-   ATIVAR PAGAMENTO
-===================================================== */
-
-function activatePayment(
-  paymentRow,
-  paymentStatus
-) {
-
-  let activeUntil =
-    paymentRow.active_until;
-
-  if (
-    paymentStatus === "approved" &&
-    !activeUntil
-  ) {
-
-    const date =
-      new Date();
-
-    const days =
-      plans[paymentRow.plan]?.days ||
-      30;
-
-    date.setDate(
-      date.getDate() + days
-    );
-
-    activeUntil =
-      date.toISOString();
-  }
-
-  db.prepare(`
-    UPDATE payments
-    SET
-      status = ?,
-      active_until = ?
-    WHERE id = ?
-  `).run(
-
-    paymentStatus,
-
-    activeUntil,
-
-    paymentRow.id
-  );
-
-  return activeUntil;
-}
-
-
-/* =====================================================
-   WEBHOOK MERCADO PAGO
-===================================================== */
+// ======================================================
+// WEBHOOK MERCADO PAGO
+// ======================================================
 
 app.post(
   "/api/mercadopago/webhook",
   async (req, res) => {
-
     try {
-
-      const body =
-        req.body || {};
-
       console.log(
-        "===== WEBHOOK RECEBIDO ====="
+        "Webhook Mercado Pago:",
+        JSON.stringify(req.body)
       );
 
-      console.log(
-        JSON.stringify(
-          body,
-          null,
-          2
-        )
-      );
+      res.sendStatus(200);
 
-      let paymentId =
-        body?.data?.id ||
-        body?.id ||
-        req.query?.["data.id"] ||
-        req.query?.id ||
-        null;
+      const body = req.body || {};
 
-      if (!paymentId) {
-
-        console.log(
-          "Webhook sem ID."
-        );
-
-        return res.sendStatus(200);
-      }
-
-      paymentId =
-        String(paymentId);
-
-      const payment =
-        await mercadoPagoRequest(
-          `https://api.mercadopago.com/v1/payments/${paymentId}`,
-          {
-            method: "GET"
-          }
-        );
-
-      const status =
-        payment?.status ||
-        "pending";
-
-      const externalReference =
-        payment?.external_reference ||
-        null;
-
-      console.log(
-        "Pagamento:",
-        paymentId,
-        "Status:",
-        status
-      );
-
-      let paymentRow =
-        db.prepare(`
-          SELECT *
-          FROM payments
-          WHERE order_id = ?
-          LIMIT 1
-        `).get(paymentId);
+      let paymentId = null;
 
       if (
-        !paymentRow &&
-        externalReference
+        body.type === "payment" &&
+        body.data?.id
       ) {
-
-        paymentRow =
-          db.prepare(`
-            SELECT *
-            FROM payments
-            WHERE external_reference = ?
-            LIMIT 1
-          `).get(
-            externalReference
-          );
+        paymentId =
+          String(body.data.id);
       }
 
-      if (!paymentRow) {
-
-        console.log(
-          "Pagamento não encontrado no banco."
-        );
-
-        return res.sendStatus(200);
+      if (
+        body.action === "payment.created" &&
+        body.data?.id
+      ) {
+        paymentId =
+          String(body.data.id);
       }
 
-      const activeUntil =
-        activatePayment(
-          paymentRow,
-          status
-        );
-
-      console.log(
-        "Pagamento atualizado:",
-        {
-          paymentId,
-          status,
-          activeUntil
-        }
-      );
-
-      return res.sendStatus(200);
-
-    } catch (error) {
-
-      console.error(
-        "ERRO WEBHOOK:",
-        error
-      );
-
-      return res.sendStatus(200);
-    }
-  }
-);
-
-
-/* =====================================================
-   RECUPERAÇÃO AUTOMÁTICA
-   DO ÚLTIMO PAGAMENTO APROVADO
-===================================================== */
-
-app.get(
-  "/api/recover-payment",
-  async (req, res) => {
-
-    try {
-
-      const email =
-        String(
-          req.query.email || ""
-        )
-          .trim()
-          .toLowerCase();
-
-      if (!email) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message:
-            "Informe o e-mail usado no pagamento."
-        });
+      if (!paymentId) {
+        return;
       }
 
-
-      /*
-        Procuramos pagamentos aprovados
-        recentemente no Mercado Pago.
-
-        O Mercado Pago permite pesquisar
-        pagamentos por status e intervalo
-        de datas.
-      */
-
-      const searchUrl =
-        "https://api.mercadopago.com/v1/payments/search" +
-        "?sort=date_created" +
-        "&criteria=desc" +
-        "&range=date_created" +
-        "&begin_date=NOW-30DAYS" +
-        "&end_date=NOW" +
-        "&status=approved" +
-        "&limit=50";
-
-
-      const search =
+      const result =
         await mercadoPagoRequest(
-          searchUrl,
-          {
-            method: "GET"
-          }
+          `/v1/payments/${encodeURIComponent(
+            paymentId
+          )}`
         );
 
+      if (!result.ok) {
+        console.error(
+          "Erro consultando pagamento do webhook:",
+          result.status,
+          result.data
+        );
 
-      const results =
-        Array.isArray(search?.results)
-          ? search.results
-          : [];
-
-
-      /*
-        Primeiro tentamos encontrar
-        exatamente pelo e-mail do pagador.
-      */
-
-      const emailMatches =
-        results.filter((payment) => {
-
-          const payerEmail =
-            String(
-              payment?.payer?.email ||
-              ""
-            )
-              .trim()
-              .toLowerCase();
-
-          return (
-            payerEmail === email
-          );
-        });
-
-
-      if (emailMatches.length === 0) {
-
-        return res.json({
-
-          success: false,
-
-          recovered: false,
-
-          message:
-            "Não encontrei pagamento aprovado para este e-mail nos últimos 30 dias."
-        });
+        return;
       }
-
-
-      /*
-        O primeiro resultado é o mais recente,
-        porque a pesquisa está ordenada
-        por date_created desc.
-      */
 
       const payment =
-        emailMatches[0];
+        result.data;
 
+      const status =
+        payment.status;
 
-      const paymentId =
-        payment.id
-          ? String(payment.id)
-          : null;
-
-
-      const description =
-        String(
-          payment.description || ""
-        );
-
-
-      /*
-        Descobre o plano pela descrição
-        ou pelo valor.
-      */
-
-      let planKey = null;
-
-
-      for (
-        const [key, plan]
-        of Object.entries(plans)
-      ) {
-
-        if (
-          description
-            .toLowerCase()
-            .includes(
-              plan.name.toLowerCase()
-            )
-        ) {
-
-          planKey = key;
-          break;
-        }
-
-        if (
-          Number(payment.transaction_amount) ===
-          Number(plan.amount)
-        ) {
-
-          planKey = key;
-          break;
-        }
-      }
-
-
-      /*
-        Se não conseguir identificar,
-        usamos mensal como fallback.
-      */
-
-      if (!planKey) {
-        planKey = "mensal";
-      }
-
-
-      const selectedPlan =
-        plans[planKey];
-
-
-      /*
-        Verifica se esse pagamento
-        já existe no banco.
-      */
-
-      let existing =
+      const existing =
         db.prepare(`
           SELECT *
           FROM payments
-          WHERE order_id = ?
+          WHERE payment_id = ?
+             OR external_reference = ?
           LIMIT 1
-        `).get(paymentId);
-
-
-      let activeUntil =
-        existing?.active_until ||
-        null;
-
-
-      if (!activeUntil) {
-
-        const date =
-          new Date();
-
-        date.setDate(
-          date.getDate() +
-          selectedPlan.days
+        `).get(
+          String(payment.id),
+          payment.external_reference || ""
         );
 
-        activeUntil =
-          date.toISOString();
-      }
+      if (
+        status === "approved"
+      ) {
+        const plan =
+          existing?.plan ||
+          getPlanFromPayment(payment);
 
+        if (!plan) {
+          console.error(
+            "Pagamento aprovado sem plano identificável:",
+            payment.id
+          );
 
-      if (existing) {
+          return;
+        }
 
-        db.prepare(`
-          UPDATE payments
-          SET
-            status = ?,
-            plan = ?,
-            amount = ?,
-            active_until = ?,
-            external_reference = ?
-          WHERE id = ?
-        `).run(
+        const approvedAt =
+          payment.date_approved ||
+          new Date().toISOString();
 
-          "approved",
+        const activeUntil =
+          calculateActiveUntil(
+            plan,
+            approvedAt
+          );
 
-          planKey,
-
-          Number(
-            payment.transaction_amount ||
-            selectedPlan.amount
-          ),
-
-          activeUntil,
-
-          payment.external_reference ||
-            null,
-
-          existing.id
-        );
-
-      } else {
+        const email =
+          normalizeEmail(
+            existing?.email ||
+            payment.payer?.email ||
+            ""
+          );
 
         db.prepare(`
-          INSERT INTO payments (
-            cpf,
-            order_id,
+          INSERT OR REPLACE INTO payments (
+            id,
+            payment_id,
             external_reference,
             name,
+            cpf,
             email,
             plan,
             amount,
             status,
-            active_until,
-            created_at
+            created_at,
+            approved_at,
+            active_until
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
+          VALUES (
+            COALESCE(
+              (
+                SELECT id
+                FROM payments
+                WHERE payment_id = @payment_id
+                   OR external_reference = @external_reference
+                LIMIT 1
+              ),
+              NULL
+            ),
+            @payment_id,
+            @external_reference,
+            @name,
+            @cpf,
+            @email,
+            @plan,
+            @amount,
+            @status,
+            @created_at,
+            @approved_at,
+            @active_until
+          )
+        `).run({
+          payment_id:
+            String(payment.id),
 
-          null,
-
-          paymentId,
-
-          payment.external_reference ||
+          external_reference:
+            payment.external_reference ||
+            existing?.external_reference ||
             null,
 
-          payment?.payer?.first_name ||
-            "Cliente",
+          name:
+            existing?.name ||
+            payment.payer?.first_name ||
+            "",
+
+          cpf:
+            existing?.cpf ||
+            payment.payer?.identification?.number ||
+            "",
 
           email,
 
-          planKey,
+          plan,
 
-          Number(
-            payment.transaction_amount ||
-            selectedPlan.amount
-          ),
+          amount:
+            Number(payment.transaction_amount || 0),
 
-          "approved",
+          status,
 
-          activeUntil,
+          created_at:
+            payment.date_created ||
+            existing?.created_at ||
+            new Date().toISOString(),
 
-          payment.date_created ||
-            new Date().toISOString()
+          approved_at:
+            approvedAt,
+
+          active_until:
+            activeUntil
+        });
+
+        console.log(
+          "Pagamento aprovado registrado:",
+          payment.id
+        );
+      } else {
+        db.prepare(`
+          UPDATE payments
+          SET status = ?
+          WHERE payment_id = ?
+        `).run(
+          status,
+          String(payment.id)
+        );
+
+        console.log(
+          "Status atualizado:",
+          payment.id,
+          status
         );
       }
 
-
-      console.log(
-        "PAGAMENTO RECUPERADO:",
-        paymentId,
-        email,
-        planKey
-      );
-
-
-      return res.json({
-
-        success: true,
-
-        recovered: true,
-
-        message:
-          "Pagamento aprovado recuperado com sucesso.",
-
-        paymentId,
-
-        status:
-          "approved",
-
-        plan:
-          planKey,
-
-        activeUntil,
-
-        telegram:
-          TELEGRAM_INVITE_URL ||
-          null
-      });
-
-
     } catch (error) {
-
       console.error(
-        "ERRO RECOVERY:",
+        "Erro webhook:",
         error
       );
-
-      return res.status(500).json({
-
-        success: false,
-
-        recovered: false,
-
-        message:
-          error.message ||
-          "Erro ao recuperar pagamento."
-      });
     }
   }
 );
 
-
-/* =====================================================
-   DIAGNÓSTICO DO ÚLTIMO PAGAMENTO LOCAL
-===================================================== */
-
-app.get(
-  "/api/payment-diagnose",
-  async (req, res) => {
-
-    try {
-
-      const paymentRow =
-        db.prepare(`
-          SELECT
-            id,
-            order_id,
-            external_reference,
-            plan,
-            amount,
-            status,
-            active_until,
-            created_at
-          FROM payments
-          ORDER BY id DESC
-          LIMIT 1
-        `).get();
-
-
-      if (!paymentRow) {
-
-        return res.json({
-
-          success: true,
-
-          databasePayment:
-            null,
-
-          message:
-            "Nenhum pagamento encontrado no banco."
-        });
-      }
-
-
-      let mercadoPago = null;
-
-
-      try {
-
-        mercadoPago =
-          await mercadoPagoRequest(
-            `https://api.mercadopago.com/v1/payments/${paymentRow.order_id}`,
-            {
-              method: "GET"
-            }
-          );
-
-      } catch (error) {
-
-        mercadoPago = {
-          error:
-            error.message
-        };
-      }
-
-
-      return res.json({
-
-        success: true,
-
-        databasePayment: {
-
-          id:
-            paymentRow.id,
-
-          paymentId:
-            paymentRow.order_id,
-
-          externalReference:
-            paymentRow.external_reference,
-
-          plan:
-            paymentRow.plan,
-
-          amount:
-            paymentRow.amount,
-
-          status:
-            paymentRow.status,
-
-          activeUntil:
-            paymentRow.active_until,
-
-          createdAt:
-            paymentRow.created_at
-        },
-
-        mercadoPago: {
-
-          id:
-            mercadoPago?.id ||
-            null,
-
-          status:
-            mercadoPago?.status ||
-            null,
-
-          statusDetail:
-            mercadoPago?.status_detail ||
-            null,
-
-          dateApproved:
-            mercadoPago?.date_approved ||
-            null
-        },
-
-        diagnosis: {
-
-          databaseStatus:
-            paymentRow.status,
-
-          mercadoPagoStatus:
-            mercadoPago?.status ||
-            null,
-
-          paymentApprovedOnMercadoPago:
-            mercadoPago?.status ===
-            "approved",
-
-          accessShouldBeActive:
-            paymentRow.status ===
-              "approved" &&
-            Boolean(
-              paymentRow.active_until
-            )
-        }
-      });
-
-    } catch (error) {
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-      });
-    }
-  }
-);
-
-
-/* =====================================================
-   ACESSO DO ASSINANTE
-===================================================== */
+// ======================================================
+// ACESSO DO ASSINANTE
+// ======================================================
 
 app.get(
   "/api/access",
   (req, res) => {
-
     try {
-
       const email =
-        String(
-          req.query.email || ""
-        )
-          .trim()
-          .toLowerCase();
-
+        normalizeEmail(
+          req.query.email
+        );
 
       if (!email) {
-
         return res.status(400).json({
-
           success: false,
-
           message:
             "Informe o e-mail."
         });
       }
-
 
       const payment =
         db.prepare(`
@@ -1257,24 +756,18 @@ app.get(
           FROM payments
           WHERE LOWER(email) = ?
             AND status = 'approved'
-          ORDER BY id DESC
+          ORDER BY active_until DESC
           LIMIT 1
         `).get(email);
 
-
       if (!payment) {
-
         return res.json({
-
-          success: false,
-
+          success: true,
           active: false,
-
           message:
-            "Nenhuma assinatura ativa encontrada."
+            "Nenhuma assinatura ativa."
         });
       }
-
 
       const activeUntil =
         payment.active_until
@@ -1283,117 +776,518 @@ app.get(
             )
           : null;
 
+      const now =
+        new Date();
 
       if (
         !activeUntil ||
-        activeUntil <= new Date()
+        activeUntil <= now
       ) {
-
         return res.json({
-
-          success: false,
-
+          success: true,
           active: false,
-
           message:
-            "Sua assinatura está expirada."
+            "Sua assinatura expirou."
         });
       }
 
-
       return res.json({
-
         success: true,
-
         active: true,
-
-        name:
-          payment.name,
-
-        plan:
-          payment.plan,
-
+        name: payment.name,
+        email: payment.email,
+        plan: payment.plan,
         activeUntil:
           payment.active_until,
-
         telegram:
-          TELEGRAM_INVITE_URL ||
-          null,
-
-        message:
-          "Assinatura ativa."
+          TELEGRAM_INVITE_URL
       });
 
-
     } catch (error) {
-
       console.error(
-        "ERRO ACCESS:",
+        "Erro access:",
         error
       );
 
       return res.status(500).json({
-
         success: false,
-
         message:
-          "Erro ao consultar acesso."
+          "Erro interno."
       });
     }
   }
 );
 
-
-/* =====================================================
-   HEALTH
-===================================================== */
+// ======================================================
+// RECUPERAÇÃO AUTOMÁTICA POR E-MAIL
+// ======================================================
 
 app.get(
-  "/api/health",
-  (req, res) => {
+  "/api/recover-payment",
+  async (req, res) => {
+    try {
+      const email =
+        normalizeEmail(
+          req.query.email
+        );
 
-    res.json({
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          recovered: false,
+          message:
+            "Informe o e-mail usado no pagamento."
+        });
+      }
 
-      server:
-        "online",
+      /*
+       * Pesquisamos pagamentos aprovados
+       * dos últimos 30 dias.
+       *
+       * O diagnóstico abaixo também funciona
+       * mesmo se o filtro por e-mail não estiver
+       * disponível na resposta.
+       */
 
-      provider:
-        "mercadopago"
-    });
+      const now =
+        new Date();
+
+      const begin =
+        new Date(
+          now.getTime() -
+          30 * 24 * 60 * 60 * 1000
+        );
+
+      const params =
+        new URLSearchParams({
+          sort: "date_created",
+          criteria: "desc",
+          range: "date_created",
+          begin_date:
+            begin.toISOString(),
+          end_date:
+            now.toISOString(),
+          status: "approved",
+          limit: "50"
+        });
+
+      const result =
+        await mercadoPagoRequest(
+          `/v1/payments/search?${params.toString()}`
+        );
+
+      if (!result.ok) {
+        console.error(
+          "Erro pesquisa pagamentos:",
+          result.status,
+          result.data
+        );
+
+        return res.status(
+          result.status
+        ).json({
+          success: false,
+          recovered: false,
+          message:
+            "O Mercado Pago recusou a pesquisa de pagamentos.",
+          mercadoPagoStatus:
+            result.status,
+          mercadoPagoError:
+            result.data
+        });
+      }
+
+      const payments =
+        Array.isArray(result.data?.results)
+          ? result.data.results
+          : [];
+
+      const matchingPayments =
+        payments.filter(
+          (payment) => {
+            const payerEmail =
+              normalizeEmail(
+                payment.payer?.email
+              );
+
+            return (
+              payerEmail === email &&
+              payment.status ===
+                "approved"
+            );
+          }
+        );
+
+      if (
+        matchingPayments.length === 0
+      ) {
+        return res.json({
+          success: true,
+          recovered: false,
+          message:
+            "Não encontrei pagamento aprovado para este e-mail nos últimos 30 dias.",
+          searchedPayments:
+            payments.length
+        });
+      }
+
+      const payment =
+        matchingPayments[0];
+
+      const plan =
+        getPlanFromPayment(payment);
+
+      if (!plan) {
+        return res.json({
+          success: false,
+          recovered: false,
+          message:
+            "Encontrei o pagamento, mas não consegui identificar o plano automaticamente.",
+          paymentId:
+            String(payment.id),
+          amount:
+            payment.transaction_amount,
+          description:
+            payment.description
+        });
+      }
+
+      const approvedAt =
+        payment.date_approved ||
+        payment.date_created ||
+        new Date().toISOString();
+
+      const activeUntil =
+        calculateActiveUntil(
+          plan,
+          approvedAt
+        );
+
+      db.prepare(`
+        INSERT OR REPLACE INTO payments (
+          payment_id,
+          external_reference,
+          name,
+          cpf,
+          email,
+          plan,
+          amount,
+          status,
+          created_at,
+          approved_at,
+          active_until
+        )
+        VALUES (
+          @payment_id,
+          @external_reference,
+          @name,
+          @cpf,
+          @email,
+          @plan,
+          @amount,
+          'approved',
+          @created_at,
+          @approved_at,
+          @active_until
+        )
+      `).run({
+        payment_id:
+          String(payment.id),
+
+        external_reference:
+          payment.external_reference ||
+          null,
+
+        name:
+          payment.payer?.first_name ||
+          "",
+
+        cpf:
+          payment.payer?.identification?.number ||
+          "",
+
+        email,
+
+        plan,
+
+        amount:
+          Number(
+            payment.transaction_amount ||
+            0
+          ),
+
+        created_at:
+          payment.date_created ||
+          approvedAt,
+
+        approved_at:
+          approvedAt,
+
+        active_until:
+          activeUntil
+      });
+
+      return res.json({
+        success: true,
+        recovered: true,
+        message:
+          "Pagamento aprovado recuperado com sucesso.",
+        paymentId:
+          String(payment.id),
+        plan,
+        amount:
+          Number(
+            payment.transaction_amount ||
+            0
+          ),
+        activeUntil,
+        telegram:
+          TELEGRAM_INVITE_URL
+      });
+
+    } catch (error) {
+      console.error(
+        "Erro recover-payment:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        recovered: false,
+        message:
+          "Erro interno na recuperação do pagamento."
+      });
+    }
   }
 );
 
+// ======================================================
+// DIAGNÓSTICO DOS PAGAMENTOS NO MERCADO PAGO
+// ======================================================
 
-/* =====================================================
-   CONFIG TEST
-===================================================== */
+app.get(
+  "/api/mercadopago-payments",
+  async (req, res) => {
+    try {
+      const now =
+        new Date();
+
+      const begin =
+        new Date(
+          now.getTime() -
+          30 * 24 * 60 * 60 * 1000
+        );
+
+      const params =
+        new URLSearchParams({
+          sort: "date_created",
+          criteria: "desc",
+          range: "date_created",
+          begin_date:
+            begin.toISOString(),
+          end_date:
+            now.toISOString(),
+          limit: "50"
+        });
+
+      const result =
+        await mercadoPagoRequest(
+          `/v1/payments/search?${params.toString()}`
+        );
+
+      if (!result.ok) {
+        return res.status(
+          result.status
+        ).json({
+          success: false,
+          mercadoPagoStatus:
+            result.status,
+          error:
+            result.data
+        });
+      }
+
+      const payments =
+        Array.isArray(result.data?.results)
+          ? result.data.results
+          : [];
+
+      const safePayments =
+        payments.map(
+          (payment) => ({
+            id:
+              String(payment.id),
+
+            status:
+              payment.status,
+
+            statusDetail:
+              payment.status_detail,
+
+            amount:
+              Number(
+                payment.transaction_amount ||
+                0
+              ),
+
+            description:
+              payment.description ||
+              null,
+
+            dateCreated:
+              payment.date_created ||
+              null,
+
+            dateApproved:
+              payment.date_approved ||
+              null,
+
+            email:
+              maskEmail(
+                payment.payer?.email
+              ),
+
+            externalReference:
+              payment.external_reference ||
+              null,
+
+            paymentMethod:
+              payment.payment_method_id ||
+              null
+          })
+        );
+
+      return res.json({
+        success: true,
+        total:
+          safePayments.length,
+        payments:
+          safePayments
+      });
+
+    } catch (error) {
+      console.error(
+        "Erro mercadopago-payments:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Erro ao consultar pagamentos do Mercado Pago."
+      });
+    }
+  }
+);
+
+// ======================================================
+// DIAGNÓSTICO DO BANCO LOCAL
+// ======================================================
+
+app.get(
+  "/api/payment-diagnose",
+  (req, res) => {
+    try {
+      const email =
+        normalizeEmail(
+          req.query.email
+        );
+
+      let payment = null;
+
+      if (email) {
+        payment =
+          db.prepare(`
+            SELECT
+              id,
+              payment_id,
+              external_reference,
+              name,
+              email,
+              plan,
+              amount,
+              status,
+              created_at,
+              approved_at,
+              active_until
+            FROM payments
+            WHERE LOWER(email) = ?
+            ORDER BY id DESC
+            LIMIT 1
+          `).get(email);
+      } else {
+        payment =
+          db.prepare(`
+            SELECT
+              id,
+              payment_id,
+              external_reference,
+              name,
+              email,
+              plan,
+              amount,
+              status,
+              created_at,
+              approved_at,
+              active_until
+            FROM payments
+            ORDER BY id DESC
+            LIMIT 1
+          `).get();
+      }
+
+      if (!payment) {
+        return res.json({
+          success: true,
+          databasePayment: null,
+          message:
+            "Nenhum pagamento encontrado no banco."
+        });
+      }
+
+      return res.json({
+        success: true,
+        databasePayment: payment
+      });
+
+    } catch (error) {
+      console.error(
+        "Erro payment-diagnose:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Erro no diagnóstico."
+      });
+    }
+  }
+);
+
+// ======================================================
+// TESTE DE CONFIGURAÇÃO
+// ======================================================
 
 app.get(
   "/api/config-test",
   (req, res) => {
+    const token =
+      MERCADO_PAGO_TOKEN || "";
 
-    res.json({
-
-      server:
-        "online",
+    return res.json({
+      server: "online",
 
       mercadoPagoTokenConfigured:
-        Boolean(
-          MERCADOPAGO_ACCESS_TOKEN
-        ),
+        Boolean(token),
 
       mercadoPagoTokenPrefix:
-        MERCADOPAGO_ACCESS_TOKEN
-          ? MERCADOPAGO_ACCESS_TOKEN.slice(
-              0,
-              8
-            )
+        token
+          ? token.substring(0, 8)
           : null,
 
       mercadoPagoTokenLength:
-        MERCADOPAGO_ACCESS_TOKEN
-          ? MERCADOPAGO_ACCESS_TOKEN.length
-          : 0,
+        token.length,
 
       pixEnabled:
         PIX_ENABLED,
@@ -1412,41 +1306,87 @@ app.get(
   }
 );
 
+// ======================================================
+// TESTE DO MERCADO PAGO
+// ======================================================
 
-/* =====================================================
-   SERVIDOR
-===================================================== */
+app.get(
+  "/api/mercadopago-test",
+  async (req, res) => {
+    try {
+      const result =
+        await mercadoPagoRequest(
+          "/v1/payment_methods"
+        );
+
+      if (!result.ok) {
+        return res.status(
+          result.status
+        ).json({
+          success: false,
+          httpStatus:
+            result.status,
+          message:
+            "Mercado Pago recusou o token.",
+          error:
+            result.data
+        });
+      }
+
+      const methods =
+        Array.isArray(result.data)
+          ? result.data
+          : [];
+
+      return res.json({
+        success: true,
+        httpStatus:
+          result.status,
+        message:
+          "Token aceito pelo Mercado Pago.",
+        paymentMethods:
+          methods.length
+      });
+
+    } catch (error) {
+      console.error(
+        "Erro mercadopago-test:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Erro ao testar Mercado Pago."
+      });
+    }
+  }
+);
+
+// ======================================================
+// HEALTH CHECK
+// ======================================================
+
+app.get(
+  "/api/health",
+  (req, res) => {
+    res.json({
+      success: true,
+      status: "online",
+      service: "Baiano Tips"
+    });
+  }
+);
+
+// ======================================================
+// INICIAR SERVIDOR
+// ======================================================
 
 app.listen(
   PORT,
   () => {
-
     console.log(
       `Servidor online na porta ${PORT}`
-    );
-
-    console.log(
-      `Mercado Pago configurado: ${
-        MERCADOPAGO_ACCESS_TOKEN
-          ? "SIM"
-          : "NÃO"
-      }`
-    );
-
-    console.log(
-      `PIX habilitado: ${
-        PIX_ENABLED
-          ? "SIM"
-          : "NÃO"
-      }`
-    );
-
-    console.log(
-      `Telegram configurado: ${
-        TELEGRAM_INVITE_URL
-          ? "SIM"
-          : "NÃO"
-      }`
     );
   }
 );
