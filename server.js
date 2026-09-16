@@ -81,11 +81,9 @@ app.get("/", (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Baiano Tips</title>
 
 <style>
-
 * {
   box-sizing: border-box;
 }
@@ -93,14 +91,12 @@ app.get("/", (req, res) => {
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background:
-    radial-gradient(circle at top, #174b2a 0%, #071b0e 45%, #020804 100%);
+  background: #071b0e;
   color: white;
   min-height: 100vh;
 }
 
 .container {
-  width: 100%;
   max-width: 700px;
   margin: auto;
   padding: 25px 15px 50px;
@@ -115,25 +111,18 @@ body {
   font-size: 42px;
   font-weight: 900;
   color: #19ff72;
-  text-shadow: 0 0 20px rgba(25,255,114,.5);
 }
 
 .subtitle {
   color: #ddd;
-  margin-top: 5px;
 }
 
 .card {
-  background: rgba(10,25,15,.92);
-  border: 1px solid rgba(25,255,114,.25);
+  background: #0b1d10;
+  border: 1px solid #285c38;
   border-radius: 18px;
   padding: 22px;
   margin-bottom: 18px;
-  box-shadow: 0 10px 40px rgba(0,0,0,.35);
-}
-
-h2 {
-  margin-top: 0;
 }
 
 .plan {
@@ -142,16 +131,11 @@ h2 {
   padding: 15px;
   margin: 10px 0;
   cursor: pointer;
-  transition: .2s;
-}
-
-.plan:hover {
-  border-color: #19ff72;
 }
 
 .plan.selected {
   border-color: #19ff72;
-  background: rgba(25,255,114,.08);
+  background: #102b18;
 }
 
 .plan-title {
@@ -189,17 +173,9 @@ button {
   cursor: pointer;
 }
 
-button:hover {
-  filter: brightness(1.1);
-}
-
 .secondary {
   background: #17251b;
   color: white;
-}
-
-#result {
-  margin-top: 15px;
 }
 
 .qr {
@@ -207,7 +183,6 @@ button:hover {
   max-width: 280px;
   width: 100%;
   margin: 20px auto;
-  border-radius: 10px;
 }
 
 .pix-code {
@@ -216,7 +191,6 @@ button:hover {
   padding: 12px;
   border-radius: 8px;
   font-size: 13px;
-  color: #ddd;
 }
 
 .success {
@@ -234,7 +208,6 @@ button:hover {
   font-size: 13px;
   line-height: 1.5;
 }
-
 </style>
 </head>
 
@@ -248,7 +221,6 @@ button:hover {
   </div>
 
   <div class="card">
-
     <h2>Escolha seu plano</h2>
 
     <div class="plan selected" data-plan="mensal" onclick="selectPlan('mensal')">
@@ -274,17 +246,13 @@ button:hover {
       <div class="price">R$ 199,90</div>
       <div>365 dias de acesso</div>
     </div>
-
   </div>
 
   <div class="card">
-
     <h2>Seus dados</h2>
 
     <input id="name" placeholder="Nome completo">
-
     <input id="cpf" placeholder="CPF">
-
     <input id="email" type="email" placeholder="E-mail">
 
     <button onclick="createPayment()">
@@ -292,32 +260,29 @@ button:hover {
     </button>
 
     <div id="paymentResult"></div>
-
   </div>
 
   <div class="card">
-
     <h2>Já sou assinante</h2>
 
-    <input id="accessEmail" type="email" placeholder="Digite seu e-mail">
+    <input
+      id="accessEmail"
+      type="email"
+      placeholder="Digite seu e-mail"
+    >
 
     <button class="secondary" onclick="checkAccess()">
       VERIFICAR ACESSO
     </button>
 
     <div id="accessResult"></div>
-
   </div>
 
   <div class="card warning">
-
     🔞 Conteúdo destinado exclusivamente a maiores de 18 anos.
-
     <br><br>
-
     Aposte com responsabilidade. O conteúdo disponibilizado pelo
     Baiano Tips não garante resultados financeiros.
-
   </div>
 
 </div>
@@ -327,10 +292,9 @@ button:hover {
 let selectedPlan = "mensal";
 
 function selectPlan(plan) {
-
   selectedPlan = plan;
 
-  document.querySelectorAll(".plan").forEach(el => {
+  document.querySelectorAll(".plan").forEach(function(el) {
     el.classList.remove("selected");
   });
 
@@ -345,11 +309,17 @@ function selectPlan(plan) {
 
 async function createPayment() {
 
-  const name = document.getElementById("name").value.trim();
-  const cpf = document.getElementById("cpf").value.trim();
-  const email = document.getElementById("email").value.trim();
+  const name =
+    document.getElementById("name").value.trim();
 
-  const result = document.getElementById("paymentResult");
+  const cpf =
+    document.getElementById("cpf").value.trim();
+
+  const email =
+    document.getElementById("email").value.trim();
+
+  const result =
+    document.getElementById("paymentResult");
 
   if (!name || !cpf || !email) {
     result.innerHTML =
@@ -361,70 +331,61 @@ async function createPayment() {
 
   try {
 
-    const response = await fetch("/api/create-payment", {
-
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json"
-      },
-
-      body: JSON.stringify({
-        name,
-        cpf,
-        email,
-        plan: selectedPlan
-      })
-
-    });
+    const response = await fetch(
+      "/api/create-payment",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: name,
+          cpf: cpf,
+          email: email,
+          plan: selectedPlan
+        })
+      }
+    );
 
     const data = await response.json();
 
     if (!data.success) {
-
       result.innerHTML =
         '<p class="error">' +
         (data.message || "Erro ao gerar PIX.") +
         '</p>';
-
       return;
     }
 
-    let html = `
-      <h3 class="success">PIX gerado!</h3>
-    `;
+    let html =
+      '<h3 class="success">PIX gerado!</h3>';
 
     if (data.qrCodeBase64) {
 
-      html += `
-        <img
-          class="qr"
-          src="data:image/png;base64,${data.qrCodeBase64}"
-        >
-      `;
+      html +=
+        '<img class="qr" src="data:image/png;base64,' +
+        data.qrCodeBase64 +
+        '">';
 
     }
 
     if (data.qrCode) {
 
-      html += `
-        <div class="pix-code">
-          ${data.qrCode}
-        </div>
+      html +=
+        '<div class="pix-code">' +
+        data.qrCode +
+        '</div>';
 
-        <button onclick="copyPix('${data.qrCode}')">
-          COPIAR PIX
-        </button>
-      `;
-
+      html +=
+        '<button onclick="copyPix(' +
+        JSON.stringify(data.qrCode) +
+        ')">' +
+        'COPIAR PIX' +
+        '</button>';
     }
 
-    html += `
-      <p>
-        Após o pagamento, aguarde a confirmação e depois
-        consulte seu acesso pelo e-mail.
-      </p>
-    `;
+    html +=
+      '<p>Após o pagamento, aguarde a confirmação e consulte seu acesso pelo e-mail.</p>';
 
     result.innerHTML = html;
 
@@ -434,7 +395,6 @@ async function createPayment() {
 
     result.innerHTML =
       '<p class="error">Erro de conexão com o servidor.</p>';
-
   }
 }
 
@@ -446,12 +406,10 @@ async function copyPix(code) {
 
     alert("PIX copiado!");
 
-  } catch {
+  } catch (error) {
 
     alert("Não foi possível copiar automaticamente.");
-
   }
-
 }
 
 async function checkAccess() {
@@ -485,44 +443,38 @@ async function checkAccess() {
 
       result.innerHTML =
         '<p class="error">' +
-        (data.message || "Nenhuma assinatura ativa encontrada.") +
+        (data.message ||
+          "Nenhuma assinatura ativa encontrada.") +
         '</p>';
 
       return;
     }
 
-    result.innerHTML = `
+    let html =
+      '<p class="success">✅ Assinatura ativa!</p>';
 
-      <p class="success">
-        ✅ Assinatura ativa!
-      </p>
+    html +=
+      '<p>Plano: <strong>' +
+      (data.plan || "") +
+      '</strong></p>';
 
-      <p>
-        Plano: <strong>${data.plan || ""}</strong>
-      </p>
+    html +=
+      '<p>Válido até: <strong>' +
+      (data.activeUntil || "") +
+      '</strong></p>';
 
-      <p>
-        Válido até:
-        <strong>${data.activeUntil || ""}</strong>
-      </p>
+    if (data.telegram) {
 
-      ${
-        data.telegram
-          ? `
-            <a
-              href="${data.telegram}"
-              target="_blank"
-              style="text-decoration:none"
-            >
-              <button>
-                ENTRAR NO TELEGRAM
-              </button>
-            </a>
-          `
-          : ""
-      }
+      html +=
+        '<a href="' +
+        data.telegram +
+        '" target="_blank" style="text-decoration:none">' +
+        '<button>ENTRAR NO TELEGRAM</button>' +
+        '</a>';
 
-    `;
+    }
+
+    result.innerHTML = html;
 
   } catch (error) {
 
@@ -530,7 +482,6 @@ async function checkAccess() {
 
     result.innerHTML =
       '<p class="error">Erro ao verificar acesso.</p>';
-
   }
 }
 
@@ -540,11 +491,6 @@ async function checkAccess() {
 </html>
   `);
 });
-
-/* =========================================================
-   CRIAR PAGAMENTO MERCADO PAGO
-========================================================= */
-
 app.post("/api/create-payment", async (req, res) => {
 
   try {
