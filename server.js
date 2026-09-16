@@ -70,22 +70,17 @@ async function ensureTable() {
   `);
 }
 
-/* =========================
+/* =========================================================
    PÁGINA PRINCIPAL
-========================= */
+========================================================= */
 
 app.get("/", (req, res) => {
-
-  const html = `
+  res.send(`
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Baiano Tips</title>
 
@@ -97,216 +92,233 @@ content="width=device-width,initial-scale=1.0">
 
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #080808;
+  font-family: Arial, sans-serif;
+  background:
+    radial-gradient(circle at top, #174b2a 0%, #071b0e 45%, #020804 100%);
   color: white;
+  min-height: 100vh;
 }
 
 .container {
-  max-width: 500px;
+  width: 100%;
+  max-width: 700px;
   margin: auto;
-  padding: 25px 18px 40px;
+  padding: 25px 15px 50px;
 }
 
-h1 {
+.header {
   text-align: center;
-  margin-bottom: 5px;
-  font-size: 36px;
-}
-
-.subtitle {
-  text-align: center;
-  color: #aaa;
   margin-bottom: 25px;
 }
 
+.logo {
+  font-size: 42px;
+  font-weight: 900;
+  color: #19ff72;
+  text-shadow: 0 0 20px rgba(25,255,114,.5);
+}
+
+.subtitle {
+  color: #ddd;
+  margin-top: 5px;
+}
+
 .card {
-  background: #151515;
-  border: 1px solid #292929;
-  border-radius: 16px;
-  padding: 20px;
+  background: rgba(10,25,15,.92);
+  border: 1px solid rgba(25,255,114,.25);
+  border-radius: 18px;
+  padding: 22px;
   margin-bottom: 18px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.35);
+}
+
+h2 {
+  margin-top: 0;
 }
 
 .plan {
-  border: 1px solid #333;
+  border: 1px solid #315f40;
   border-radius: 12px;
   padding: 15px;
-  margin-bottom: 10px;
+  margin: 10px 0;
   cursor: pointer;
+  transition: .2s;
 }
 
 .plan:hover {
-  border-color: #00ff88;
+  border-color: #19ff72;
 }
 
-.plan strong {
-  display: block;
-  font-size: 19px;
+.plan.selected {
+  border-color: #19ff72;
+  background: rgba(25,255,114,.08);
 }
 
-.plan span {
-  display: block;
-  color: #00ff88;
-  font-size: 22px;
+.plan-title {
   font-weight: bold;
-  margin-top: 5px;
+  font-size: 18px;
+}
+
+.price {
+  color: #19ff72;
+  font-size: 24px;
+  font-weight: bold;
 }
 
 input {
   width: 100%;
   padding: 14px;
-  margin-top: 10px;
-  border-radius: 8px;
-  border: 1px solid #333;
-  background: #0d0d0d;
+  margin: 7px 0;
+  border-radius: 9px;
+  border: 1px solid #35513d;
+  background: #07140b;
   color: white;
   font-size: 16px;
 }
 
 button {
   width: 100%;
-  padding: 15px;
-  margin-top: 15px;
   border: 0;
-  border-radius: 9px;
-  background: #00d979;
-  color: #000;
+  border-radius: 10px;
+  padding: 15px;
+  margin-top: 10px;
+  background: #19ff72;
+  color: #001507;
   font-size: 17px;
   font-weight: bold;
   cursor: pointer;
 }
 
-.result {
+button:hover {
+  filter: brightness(1.1);
+}
+
+.secondary {
+  background: #17251b;
+  color: white;
+}
+
+#result {
   margin-top: 15px;
-  padding: 15px;
-  border-radius: 10px;
-  background: #101010;
-  line-height: 1.5;
 }
 
 .qr {
-  width: 100%;
-  max-width: 300px;
   display: block;
-  margin: 15px auto;
+  max-width: 280px;
+  width: 100%;
+  margin: 20px auto;
+  border-radius: 10px;
 }
 
-.pix {
+.pix-code {
   word-break: break-all;
-  background: #080808;
+  background: #020904;
   padding: 12px;
   border-radius: 8px;
   font-size: 13px;
+  color: #ddd;
 }
 
 .success {
-  color: #00ff88;
-}
-
-.error {
-  color: #ff5555;
-}
-
-.telegram {
-  display: block;
-  text-decoration: none;
-  text-align: center;
-  background: #229ED9;
-  color: white;
-  padding: 15px;
-  border-radius: 9px;
-  margin-top: 15px;
+  color: #19ff72;
   font-weight: bold;
 }
 
-</style>
+.error {
+  color: #ff6767;
+  font-weight: bold;
+}
 
+.warning {
+  color: #ffc857;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+</style>
 </head>
 
 <body>
 
 <div class="container">
 
-<h1>BAIANO TIPS</h1>
+  <div class="header">
+    <div class="logo">BAIANO TIPS</div>
+    <div class="subtitle">Tips e Alavancagem</div>
+  </div>
 
-<div class="subtitle">
-Tips e Alavancagem
-</div>
+  <div class="card">
 
-<div class="card">
+    <h2>Escolha seu plano</h2>
 
-<h2>Escolha seu plano</h2>
+    <div class="plan selected" data-plan="mensal" onclick="selectPlan('mensal')">
+      <div class="plan-title">Mensal</div>
+      <div class="price">R$ 29,90</div>
+      <div>30 dias de acesso</div>
+    </div>
 
-<div class="plan" onclick="selectPlan('mensal')">
-<strong>Mensal</strong>
-<span>R$ 29,90</span>
-<small>30 dias</small>
-</div>
+    <div class="plan" data-plan="trimestral" onclick="selectPlan('trimestral')">
+      <div class="plan-title">Trimestral</div>
+      <div class="price">R$ 69,90</div>
+      <div>90 dias de acesso</div>
+    </div>
 
-<div class="plan" onclick="selectPlan('trimestral')">
-<strong>Trimestral</strong>
-<span>R$ 69,90</span>
-<small>90 dias</small>
-</div>
+    <div class="plan" data-plan="semestral" onclick="selectPlan('semestral')">
+      <div class="plan-title">Semestral</div>
+      <div class="price">R$ 119,90</div>
+      <div>180 dias de acesso</div>
+    </div>
 
-<div class="plan" onclick="selectPlan('semestral')">
-<strong>Semestral</strong>
-<span>R$ 119,90</span>
-<small>180 dias</small>
-</div>
+    <div class="plan" data-plan="anual" onclick="selectPlan('anual')">
+      <div class="plan-title">Anual</div>
+      <div class="price">R$ 199,90</div>
+      <div>365 dias de acesso</div>
+    </div>
 
-<div class="plan" onclick="selectPlan('anual')">
-<strong>Anual</strong>
-<span>R$ 199,90</span>
-<small>365 dias</small>
-</div>
+  </div>
 
-<input
-id="name"
-placeholder="Digite seu nome"
->
+  <div class="card">
 
-<input
-id="cpf"
-placeholder="Digite seu CPF"
->
+    <h2>Seus dados</h2>
 
-<input
-id="email"
-type="email"
-placeholder="Digite seu e-mail"
->
+    <input id="name" placeholder="Nome completo">
 
-<button onclick="generatePix()">
-GERAR PIX
-</button>
+    <input id="cpf" placeholder="CPF">
 
-<div id="pixResult"></div>
+    <input id="email" type="email" placeholder="E-mail">
 
-</div>
+    <button onclick="createPayment()">
+      GERAR PIX
+    </button>
 
-<div class="card">
+    <div id="paymentResult"></div>
 
-<h2>Já sou assinante</h2>
+  </div>
 
-<input
-id="accessEmail"
-type="email"
-placeholder="Digite seu e-mail"
->
+  <div class="card">
 
-<button onclick="checkAccess()">
-VERIFICAR ACESSO
-</button>
+    <h2>Já sou assinante</h2>
 
-<div id="accessResult"></div>
+    <input id="accessEmail" type="email" placeholder="Digite seu e-mail">
 
-</div>
+    <button class="secondary" onclick="checkAccess()">
+      VERIFICAR ACESSO
+    </button>
 
-<div style="text-align:center;color:#777;font-size:12px;">
-18+ | Aposte com responsabilidade.
-</div>
+    <div id="accessResult"></div>
+
+  </div>
+
+  <div class="card warning">
+
+    🔞 Conteúdo destinado exclusivamente a maiores de 18 anos.
+
+    <br><br>
+
+    Aposte com responsabilidade. O conteúdo disponibilizado pelo
+    Baiano Tips não garante resultados financeiros.
+
+  </div>
 
 </div>
 
@@ -318,134 +330,147 @@ function selectPlan(plan) {
 
   selectedPlan = plan;
 
-  alert("Plano selecionado: " + plan);
+  document.querySelectorAll(".plan").forEach(el => {
+    el.classList.remove("selected");
+  });
 
+  const selected = document.querySelector(
+    '[data-plan="' + plan + '"]'
+  );
+
+  if (selected) {
+    selected.classList.add("selected");
+  }
 }
 
-async function generatePix() {
+async function createPayment() {
 
-  const name =
-    document.getElementById("name").value.trim();
+  const name = document.getElementById("name").value.trim();
+  const cpf = document.getElementById("cpf").value.trim();
+  const email = document.getElementById("email").value.trim();
 
-  const cpf =
-    document.getElementById("cpf").value.trim();
-
-  const email =
-    document.getElementById("email").value.trim();
+  const result = document.getElementById("paymentResult");
 
   if (!name || !cpf || !email) {
-
-    alert("Preencha nome, CPF e e-mail.");
-
+    result.innerHTML =
+      '<p class="error">Preencha todos os campos.</p>';
     return;
-
   }
 
-  document.getElementById("pixResult").innerHTML =
-    "<div class='result'>Gerando PIX...</div>";
+  result.innerHTML = "Gerando PIX...";
 
   try {
 
-    const response = await fetch(
-      "/api/create-payment",
-      {
-        method: "POST",
+    const response = await fetch("/api/create-payment", {
 
-        headers: {
-          "Content-Type": "application/json"
-        },
+      method: "POST",
 
-        body: JSON.stringify({
-          name,
-          cpf,
-          email,
-          plan: selectedPlan
-        })
-      }
-    );
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        name,
+        cpf,
+        email,
+        plan: selectedPlan
+      })
+
+    });
 
     const data = await response.json();
 
     if (!data.success) {
 
-      document.getElementById("pixResult").innerHTML =
-        "<div class='result error'>" +
+      result.innerHTML =
+        '<p class="error">' +
         (data.message || "Erro ao gerar PIX.") +
-        "</div>";
+        '</p>';
 
       return;
+    }
+
+    let html = `
+      <h3 class="success">PIX gerado!</h3>
+    `;
+
+    if (data.qrCodeBase64) {
+
+      html += `
+        <img
+          class="qr"
+          src="data:image/png;base64,${data.qrCodeBase64}"
+        >
+      `;
 
     }
 
-    document.getElementById("pixResult").innerHTML =
+    if (data.qrCode) {
 
-      "<div class='result'>" +
+      html += `
+        <div class="pix-code">
+          ${data.qrCode}
+        </div>
 
-      "<h3>PIX gerado!</h3>" +
+        <button onclick="copyPix('${data.qrCode}')">
+          COPIAR PIX
+        </button>
+      `;
 
-      "<img class='qr' src='data:image/png;base64," +
-      data.qrCodeBase64 +
-      "'>" +
+    }
 
-      "<p>Copie o código PIX:</p>" +
+    html += `
+      <p>
+        Após o pagamento, aguarde a confirmação e depois
+        consulte seu acesso pelo e-mail.
+      </p>
+    `;
 
-      "<div class='pix'>" +
-      data.qrCode +
-      "</div>" +
-
-      "<button onclick='copyPix()'>" +
-      "COPIAR PIX" +
-      "</button>" +
-
-      "</div>";
-
-    window.currentPix = data.qrCode;
+    result.innerHTML = html;
 
   } catch (error) {
 
     console.error(error);
 
-    document.getElementById("pixResult").innerHTML =
-      "<div class='result error'>" +
-      "Erro de conexão." +
-      "</div>";
+    result.innerHTML =
+      '<p class="error">Erro de conexão com o servidor.</p>';
 
   }
-
 }
 
-function copyPix() {
+async function copyPix(code) {
 
-  if (!window.currentPix) {
-    return;
+  try {
+
+    await navigator.clipboard.writeText(code);
+
+    alert("PIX copiado!");
+
+  } catch {
+
+    alert("Não foi possível copiar automaticamente.");
+
   }
-
-  navigator.clipboard.writeText(window.currentPix);
-
-  alert("PIX copiado!");
 
 }
 
 async function checkAccess() {
 
   const email =
-    document.getElementById("accessEmail")
-      .value
-      .trim();
-
-  if (!email) {
-
-    alert("Digite seu e-mail.");
-
-    return;
-
-  }
+    document.getElementById("accessEmail").value.trim();
 
   const result =
     document.getElementById("accessResult");
 
-  result.innerHTML =
-    "<div class='result'>Verificando...</div>";
+  if (!email) {
+
+    result.innerHTML =
+      '<p class="error">Digite seu e-mail.</p>';
+
+    return;
+  }
+
+  result.innerHTML = "Verificando...";
 
   try {
 
@@ -456,76 +481,82 @@ async function checkAccess() {
 
     const data = await response.json();
 
-    if (!data.success || !data.active) {
+    if (!data.active) {
 
       result.innerHTML =
-        "<div class='result error'>" +
-        (data.message ||
-        "Nenhuma assinatura ativa encontrada.") +
-        "</div>";
+        '<p class="error">' +
+        (data.message || "Nenhuma assinatura ativa encontrada.") +
+        '</p>';
 
       return;
-
     }
 
-    result.innerHTML =
+    result.innerHTML = `
 
-      "<div class='result'>" +
+      <p class="success">
+        ✅ Assinatura ativa!
+      </p>
 
-      "<div class='success'>" +
-      "<strong>ASSINATURA ATIVA!</strong>" +
-      "</div>" +
+      <p>
+        Plano: <strong>${data.plan || ""}</strong>
+      </p>
 
-      "<p>Plano: " +
-      (data.plan || "assinatura") +
-      "</p>" +
+      <p>
+        Válido até:
+        <strong>${data.activeUntil || ""}</strong>
+      </p>
 
-      "<p>Válido até: " +
-      new Date(data.activeUntil)
-        .toLocaleDateString("pt-BR") +
-      "</p>" +
+      ${
+        data.telegram
+          ? `
+            <a
+              href="${data.telegram}"
+              target="_blank"
+              style="text-decoration:none"
+            >
+              <button>
+                ENTRAR NO TELEGRAM
+              </button>
+            </a>
+          `
+          : ""
+      }
 
-      "<a class='telegram' href='" +
-      data.telegram +
-      "' target='_blank'>" +
-
-      "ENTRAR NO TELEGRAM" +
-
-      "</a>" +
-
-      "</div>";
+    `;
 
   } catch (error) {
 
     console.error(error);
 
     result.innerHTML =
-      "<div class='result error'>" +
-      "Erro ao verificar acesso." +
-      "</div>";
+      '<p class="error">Erro ao verificar acesso.</p>';
 
   }
-
 }
 
 </script>
 
 </body>
-
 </html>
-`;
-
-  res.send(html);
-
+  `);
 });
 
-/* =========================
-   CRIAR PAGAMENTO
-========================= */
+/* =========================================================
+   CRIAR PAGAMENTO MERCADO PAGO
+========================================================= */
 
 app.post("/api/create-payment", async (req, res) => {
 
   try {
+
+    if (!MP_TOKEN) {
+
+      return res.status(500).json({
+        success: false,
+        message: "Token do Mercado Pago não configurado."
+      });
+
+    }
 
     const {
       name,
@@ -534,29 +565,19 @@ app.post("/api/create-payment", async (req, res) => {
       plan
     } = req.body;
 
-    if (!name || !cpf || !email || !plan) {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (
+      !name ||
+      !cpf ||
+      !normalizedEmail ||
+      !PLAN_DAYS[plan] ||
+      !PLAN_PRICES[plan]
+    ) {
 
       return res.status(400).json({
         success: false,
-        message: "Dados incompletos."
-      });
-
-    }
-
-    if (!PLAN_PRICES[plan]) {
-
-      return res.status(400).json({
-        success: false,
-        message: "Plano inválido."
-      });
-
-    }
-
-    if (!MP_TOKEN) {
-
-      return res.status(500).json({
-        success: false,
-        message: "Mercado Pago não configurado."
+        message: "Dados inválidos."
       });
 
     }
@@ -567,7 +588,7 @@ app.post("/api/create-payment", async (req, res) => {
       "-" +
       Math.random()
         .toString(16)
-        .slice(2, 10)
+        .substring(2, 10)
         .toUpperCase();
 
     const paymentData = {
@@ -583,7 +604,7 @@ app.post("/api/create-payment", async (req, res) => {
       payment_method_id: "pix",
 
       payer: {
-        email: normalizeEmail(email),
+        email: normalizedEmail,
         first_name: name
       },
 
@@ -595,15 +616,24 @@ app.post("/api/create-payment", async (req, res) => {
     const response = await fetch(
       "https://api.mercadopago.com/v1/payments",
       {
+
         method: "POST",
 
         headers: {
-          "Authorization": "Bearer " + MP_TOKEN,
+
           "Content-Type": "application/json",
-          "X-Idempotency-Key": externalReference
+
+          "Authorization":
+            "Bearer " + MP_TOKEN,
+
+          "X-Idempotency-Key":
+            externalReference
+
         },
 
-        body: JSON.stringify(paymentData)
+        body:
+          JSON.stringify(paymentData)
+
       }
     );
 
@@ -616,18 +646,22 @@ app.post("/api/create-payment", async (req, res) => {
         data
       );
 
-      return res.status(400).json({
+      return res.status(response.status).json({
+
         success: false,
+
         message:
           data.message ||
           "Erro ao criar pagamento."
+
       });
 
     }
 
     const transactionData =
       data.point_of_interaction &&
-      data.point_of_interaction.transaction_data;
+      data.point_of_interaction
+        .transaction_data;
 
     const qrCode =
       transactionData &&
@@ -639,8 +673,7 @@ app.post("/api/create-payment", async (req, res) => {
 
     await pool.query(
       `
-      INSERT INTO payments
-      (
+      INSERT INTO payments (
         payment_id,
         external_reference,
         name,
@@ -648,17 +681,17 @@ app.post("/api/create-payment", async (req, res) => {
         email,
         plan,
         amount,
-        status
+        status,
+        created_at
       )
-      VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
       `,
       [
         String(data.id),
         externalReference,
         name,
         cpf,
-        normalizeEmail(email),
+        normalizedEmail,
         plan,
         PLAN_PRICES[plan],
         data.status || "pending"
@@ -674,7 +707,12 @@ app.post("/api/create-payment", async (req, res) => {
 
       qrCode,
 
-      qrCodeBase64
+      qrCodeBase64,
+
+      status:
+        data.status,
+
+      externalReference
 
     });
 
@@ -697,208 +735,228 @@ app.post("/api/create-payment", async (req, res) => {
   }
 
 });
- 
-/* =========================
+
+/* =========================================================
    WEBHOOK MERCADO PAGO
-========================= */
+========================================================= */
 
 app.post("/api/mercadopago/webhook", async (req, res) => {
-
-  res.sendStatus(200);
 
   try {
 
     const paymentId =
-      req.body &&
-      req.body.data &&
-      req.body.data.id;
+      req.body?.data?.id ||
+      req.query?.id;
 
-    if (!paymentId || !MP_TOKEN) {
-      return;
+    if (!paymentId) {
+
+      return res.json({
+        success: true
+      });
+
     }
 
     const response = await fetch(
       "https://api.mercadopago.com/v1/payments/" +
       paymentId,
       {
+
         headers: {
-          "Authorization":
+          Authorization:
             "Bearer " + MP_TOKEN
         }
+
       }
     );
 
-    const payment = await response.json();
-
     if (!response.ok) {
-      return;
+
+      return res.json({
+        success: true
+      });
+
     }
 
-    if (payment.status !== "approved") {
-      return;
-    }
+    const payment =
+      await response.json();
 
-    const email =
-      payment.payer &&
-      payment.payer.email
-        ? normalizeEmail(payment.payer.email)
-        : "";
+    const status =
+      payment.status;
 
-    const description =
-      String(payment.description || "")
-        .toLowerCase();
-
-    let plan = "mensal";
-
-    if (description.includes("trimestral")) {
-      plan = "trimestral";
-    } else if (description.includes("semestral")) {
-      plan = "semestral";
-    } else if (description.includes("anual")) {
-      plan = "anual";
-    }
-
-    const approvedAt =
-      payment.date_approved
-        ? new Date(payment.date_approved)
-        : new Date();
-
-    const activeUntil =
-      addDays(
-        approvedAt,
-        PLAN_DAYS[plan]
+    const payerEmail =
+      normalizeEmail(
+        payment.payer?.email
       );
 
-    const existing = await pool.query(
-      `
-      SELECT id
-      FROM payments
-      WHERE payment_id = $1
-      LIMIT 1
-      `,
-      [String(payment.id)]
-    );
+    const externalReference =
+      payment.external_reference;
 
-    if (existing.rows.length > 0) {
-
+    let existing =
       await pool.query(
         `
-        UPDATE payments
-        SET
-          email = $1,
-          plan = $2,
-          amount = $3,
-          status = 'approved',
-          approved_at = $4,
-          active_until = $5
-        WHERE payment_id = $6
+        SELECT *
+        FROM payments
+        WHERE payment_id = $1
+        LIMIT 1
         `,
-        [
-          email,
-          plan,
-          payment.transaction_amount,
-          approvedAt,
-          activeUntil,
-          String(payment.id)
-        ]
+        [String(paymentId)]
       );
 
-    } else {
+    let plan =
+      existing.rows[0]?.plan ||
+      "mensal";
 
-      await pool.query(
-        `
-        INSERT INTO payments
-        (
-          payment_id,
-          external_reference,
-          email,
-          plan,
-          amount,
-          status,
-          approved_at,
-          active_until
-        )
-        VALUES
-        ($1,$2,$3,$4,$5,'approved',$6,$7)
-        `,
-        [
-          String(payment.id),
-          payment.external_reference || "",
-          email,
-          plan,
-          payment.transaction_amount,
-          approvedAt,
-          activeUntil
-        ]
-      );
+    if (!existing.rows.length && externalReference) {
+
+      const refResult =
+        await pool.query(
+          `
+          SELECT *
+          FROM payments
+          WHERE external_reference = $1
+          LIMIT 1
+          `,
+          [externalReference]
+        );
+
+      existing =
+        refResult;
+
+      plan =
+        existing.rows[0]?.plan ||
+        plan;
+    }
+
+    if (existing.rows.length) {
+
+      const current =
+        existing.rows[0];
+
+      if (status === "approved") {
+
+        const approvedAt =
+          payment.date_approved
+            ? new Date(payment.date_approved)
+            : new Date();
+
+        const activeUntil =
+          addDays(
+            approvedAt,
+            PLAN_DAYS[plan] || 30
+          );
+
+        await pool.query(
+          `
+          UPDATE payments
+          SET
+            status = 'approved',
+            email = COALESCE(NULLIF($1,''), email),
+            approved_at = $2,
+            active_until = $3
+          WHERE id = $4
+          `,
+          [
+            payerEmail,
+            approvedAt,
+            activeUntil,
+            current.id
+          ]
+        );
+
+      } else {
+
+        await pool.query(
+          `
+          UPDATE payments
+          SET status = $1
+          WHERE id = $2
+          `,
+          [
+            status,
+            current.id
+          ]
+        );
+
+      }
 
     }
 
-    console.log(
-      "PAGAMENTO APROVADO:",
-      payment.id
-    );
+    return res.json({
+      success: true
+    });
 
   } catch (error) {
 
     console.error(
-      "ERRO WEBHOOK:",
+      "WEBHOOK ERROR:",
       error
     );
+
+    return res.json({
+      success: true
+    });
 
   }
 
 });
 
-
-/* =========================
-   VERIFICAR ACESSO
-========================= */
+/* =========================================================
+   ACESSO
+========================================================= */
 
 app.get("/api/access", async (req, res) => {
 
   try {
 
-    const requestedEmail =
+    const email =
       normalizeEmail(req.query.email);
 
-    console.log(
-      "VERIFICANDO ASSINATURA:",
-      requestedEmail
-    );
+    if (!email) {
 
-    if (!requestedEmail) {
+      return res.status(400).json({
 
-      return res.json({
         success: false,
+
         active: false,
-        message: "Digite seu e-mail."
+
+        message:
+          "Informe o e-mail."
+
       });
 
     }
 
-
-    /* 1 - BANCO LOCAL */
-
-    const direct = await pool.query(
-      `
-      SELECT *
-      FROM payments
-      WHERE
-        LOWER(TRIM(email)) = $1
-        AND status = 'approved'
-        AND active_until > NOW()
-      ORDER BY active_until DESC
-      LIMIT 1
-      `,
-      [requestedEmail]
+    console.log(
+      "VERIFICANDO ASSINATURA:",
+      {
+        recebido: req.query.email,
+        normalizado: email
+      }
     );
 
+    const result =
+      await pool.query(
+        `
+        SELECT *
+        FROM payments
+        WHERE LOWER(TRIM(email)) = $1
+          AND status = 'approved'
+          AND active_until > NOW()
+        ORDER BY active_until DESC
+        LIMIT 1
+        `,
+        [email]
+      );
 
-    if (direct.rows.length > 0) {
+    console.log(
+      "PAGAMENTOS ENCONTRADOS:",
+      result.rows.length
+    );
+
+    if (result.rows.length) {
 
       const payment =
-        direct.rows[0];
+        result.rows[0];
 
       return res.json({
 
@@ -922,338 +980,6 @@ app.get("/api/access", async (req, res) => {
 
     }
 
-
-    /* 2 - CONFERIR PAGAMENTOS EXISTENTES
-          DIRETAMENTE NO MERCADO PAGO */
-
-    const approved =
-      await pool.query(
-        `
-        SELECT *
-        FROM payments
-        WHERE
-          status = 'approved'
-          AND active_until > NOW()
-        ORDER BY active_until DESC
-        `
-      );
-
-
-    for (const payment of approved.rows) {
-
-      if (!payment.payment_id) {
-        continue;
-      }
-
-      try {
-
-        const mpResponse =
-          await fetch(
-            "https://api.mercadopago.com/v1/payments/" +
-            payment.payment_id,
-            {
-              headers: {
-                "Authorization":
-                  "Bearer " + MP_TOKEN
-              }
-            }
-          );
-
-
-        if (!mpResponse.ok) {
-          continue;
-        }
-
-
-        const mpPayment =
-          await mpResponse.json();
-
-
-        const mpEmail =
-          mpPayment.payer &&
-          mpPayment.payer.email
-            ? normalizeEmail(
-                mpPayment.payer.email
-              )
-            : "";
-
-
-        if (
-          mpEmail &&
-          mpEmail === requestedEmail
-        ) {
-
-          await pool.query(
-            `
-            UPDATE payments
-            SET email = $1
-            WHERE payment_id = $2
-            `,
-            [
-              requestedEmail,
-              String(payment.payment_id)
-            ]
-          );
-
-
-          return res.json({
-
-            success: true,
-
-            active: true,
-
-            plan:
-              payment.plan,
-
-            amount:
-              Number(payment.amount),
-
-            activeUntil:
-              payment.active_until,
-
-            telegram:
-              TELEGRAM_INVITE_URL
-
-          });
-
-        }
-
-      } catch (error) {
-
-        console.error(
-          "ERRO CONSULTANDO PAGAMENTO:",
-          error.message
-        );
-
-      }
-
-    }
-
-
-    /* 3 - BUSCAR DIRETO NO MERCADO PAGO */
-
-    try {
-
-      const searchUrl =
-        "https://api.mercadopago.com/v1/payments/search" +
-        "?sort=date_created" +
-        "&criteria=desc" +
-        "&limit=100";
-
-
-      const mpResponse =
-        await fetch(
-          searchUrl,
-          {
-            headers: {
-              "Authorization":
-                "Bearer " + MP_TOKEN
-            }
-          }
-        );
-
-
-      if (mpResponse.ok) {
-
-        const mpData =
-          await mpResponse.json();
-
-        const results =
-          mpData.results || [];
-
-
-        for (const payment of results) {
-
-          if (
-            payment.status !==
-            "approved"
-          ) {
-            continue;
-          }
-
-
-          const mpEmail =
-            payment.payer &&
-            payment.payer.email
-              ? normalizeEmail(
-                  payment.payer.email
-                )
-              : "";
-
-
-          if (
-            !mpEmail ||
-            mpEmail !== requestedEmail
-          ) {
-            continue;
-          }
-
-
-          const description =
-            String(
-              payment.description || ""
-            ).toLowerCase();
-
-
-          let plan = "mensal";
-
-
-          if (
-            description.includes(
-              "trimestral"
-            )
-          ) {
-
-            plan = "trimestral";
-
-          } else if (
-            description.includes(
-              "semestral"
-            )
-          ) {
-
-            plan = "semestral";
-
-          } else if (
-            description.includes(
-              "anual"
-            )
-          ) {
-
-            plan = "anual";
-
-          }
-
-
-          const approvedAt =
-            payment.date_approved
-              ? new Date(
-                  payment.date_approved
-                )
-              : new Date();
-
-
-          const activeUntil =
-            addDays(
-              approvedAt,
-              PLAN_DAYS[plan]
-            );
-
-
-          const existingPayment =
-            await pool.query(
-              `
-              SELECT id
-              FROM payments
-              WHERE payment_id = $1
-              LIMIT 1
-              `,
-              [String(payment.id)]
-            );
-
-
-          if (
-            existingPayment.rows.length > 0
-          ) {
-
-            await pool.query(
-              `
-              UPDATE payments
-              SET
-                email = $1,
-                plan = $2,
-                amount = $3,
-                status = 'approved',
-                approved_at = $4,
-                active_until = $5
-              WHERE payment_id = $6
-              `,
-              [
-                requestedEmail,
-                plan,
-                payment.transaction_amount,
-                approvedAt,
-                activeUntil,
-                String(payment.id)
-              ]
-            );
-
-          } else {
-
-            await pool.query(
-              `
-              INSERT INTO payments
-              (
-                payment_id,
-                external_reference,
-                email,
-                plan,
-                amount,
-                status,
-                approved_at,
-                active_until
-              )
-              VALUES
-              (
-                $1,$2,$3,$4,$5,
-                'approved',
-                $6,$7
-              )
-              `,
-              [
-                String(payment.id),
-                payment.external_reference || "",
-                requestedEmail,
-                plan,
-                payment.transaction_amount,
-                approvedAt,
-                activeUntil
-              ]
-            );
-
-          }
-
-
-          if (
-            activeUntil > new Date()
-          ) {
-
-            return res.json({
-
-              success: true,
-
-              active: true,
-
-              plan,
-
-              amount:
-                Number(
-                  payment.transaction_amount
-                ),
-
-              activeUntil,
-
-              telegram:
-                TELEGRAM_INVITE_URL
-
-            });
-
-          }
-
-        }
-
-      }
-
-    } catch (error) {
-
-      console.error(
-        "ERRO BUSCA MERCADO PAGO:",
-        error.message
-      );
-
-    }
-
-
     return res.json({
 
       success: true,
@@ -1265,14 +991,12 @@ app.get("/api/access", async (req, res) => {
 
     });
 
-
   } catch (error) {
 
     console.error(
-      "ERRO ACCESS:",
+      "ACCESS ERROR:",
       error
     );
-
 
     return res.status(500).json({
 
@@ -1281,7 +1005,7 @@ app.get("/api/access", async (req, res) => {
       active: false,
 
       message:
-        "Erro interno ao verificar acesso."
+        "Erro interno ao verificar assinatura."
 
     });
 
@@ -1289,10 +1013,120 @@ app.get("/api/access", async (req, res) => {
 
 });
 
+/* =========================================================
+   CORRIGIR E-MAIL DA ASSINATURA
+========================================================= */
 
-/* =========================
+app.get("/api/fix-access", async (req, res) => {
+
+  try {
+
+    const email =
+      normalizeEmail(req.query.email);
+
+    const paymentId =
+      String(
+        req.query.paymentId || ""
+      ).trim();
+
+    if (!email || !paymentId) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Informe email e paymentId."
+
+      });
+
+    }
+
+    const result =
+      await pool.query(
+        `
+        UPDATE payments
+        SET email = $1
+        WHERE payment_id = $2
+        RETURNING
+          payment_id,
+          plan,
+          amount,
+          status,
+          active_until
+        `,
+        [
+          email,
+          paymentId
+        ]
+      );
+
+    if (result.rowCount === 0) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message:
+          "Pagamento não encontrado no banco."
+
+      });
+
+    }
+
+    const payment =
+      result.rows[0];
+
+    return res.json({
+
+      success: true,
+
+      message:
+        "E-mail vinculado à assinatura com sucesso.",
+
+      paymentId:
+        payment.payment_id,
+
+      plan:
+        payment.plan,
+
+      amount:
+        Number(payment.amount),
+
+      status:
+        payment.status,
+
+      activeUntil:
+        payment.active_until,
+
+      telegram:
+        TELEGRAM_INVITE_URL
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      "ERRO AO CORRIGIR ACESSO:",
+      error
+    );
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        "Erro interno ao corrigir acesso."
+
+    });
+
+  }
+
+});
+
+/* =========================================================
    DEBUG ACCESS
-========================= */
+========================================================= */
 
 app.get("/api/debug-access", async (req, res) => {
 
@@ -1301,23 +1135,22 @@ app.get("/api/debug-access", async (req, res) => {
     const email =
       normalizeEmail(req.query.email);
 
-
     const result =
       await pool.query(
         `
         SELECT
           id,
           email,
+          LOWER(TRIM(email)) AS email_normalizado,
           status,
           active_until,
           NOW() AS agora,
-          (
-            active_until > NOW()
-          ) AS data_valida
+          active_until > NOW() AS data_valida
         FROM payments
-        `
+        ORDER BY id DESC
+        `,
+        []
       );
-
 
     return res.json({
 
@@ -1330,39 +1163,615 @@ app.get("/api/debug-access", async (req, res) => {
         result.rows.length,
 
       registros:
-        result.rows.map(row => ({
-
-          id:
-            row.id,
-
-          email:
-            row.email,
-
-          email_normalizado:
-            normalizeEmail(row.email),
-
-          status:
-            row.status,
-
-          active_until:
-            row.active_until,
-
-          agora:
-            row.agora,
-
-          data_valida:
-            row.data_valida
-
-        }))
+        result.rows
 
     });
-
 
   } catch (error) {
 
     return res.status(500).json({
 
       success: false,
+
+      message:
+        error.message
+
+    });
+
+  }
+
+});
+
+/* =========================================================
+   RECUPERAR PAGAMENTO
+========================================================= */
+
+app.get("/api/recover-payment-by-id", async (req, res) => {
+
+  try {
+
+    const paymentId =
+      String(
+        req.query.id || ""
+      ).trim();
+
+    if (!paymentId) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Informe o ID do pagamento."
+
+      });
+
+    }
+
+    const response =
+      await fetch(
+        "https://api.mercadopago.com/v1/payments/" +
+        paymentId,
+        {
+
+          headers: {
+            Authorization:
+              "Bearer " + MP_TOKEN
+          }
+
+        }
+      );
+
+    const payment =
+      await response.json();
+
+    if (!response.ok) {
+
+      return res.status(response.status).json({
+
+        success: false,
+
+        message:
+          payment.message ||
+          "Pagamento não encontrado."
+
+      });
+
+    }
+
+    if (payment.status !== "approved") {
+
+      return res.json({
+
+        success: false,
+
+        recovered: false,
+
+        message:
+          "Pagamento ainda não está aprovado.",
+
+        status:
+          payment.status
+
+      });
+
+    }
+
+    const email =
+      normalizeEmail(
+        payment.payer?.email
+      );
+
+    const externalReference =
+      payment.external_reference;
+
+    let existing =
+      await pool.query(
+        `
+        SELECT *
+        FROM payments
+        WHERE payment_id = $1
+        LIMIT 1
+        `,
+        [paymentId]
+      );
+
+    if (!existing.rows.length && externalReference) {
+
+      existing =
+        await pool.query(
+          `
+          SELECT *
+          FROM payments
+          WHERE external_reference = $1
+          LIMIT 1
+          `,
+          [externalReference]
+        );
+
+    }
+
+    const plan =
+      existing.rows[0]?.plan ||
+      "mensal";
+
+    const approvedAt =
+      payment.date_approved
+        ? new Date(payment.date_approved)
+        : new Date();
+
+    const activeUntil =
+      addDays(
+        approvedAt,
+        PLAN_DAYS[plan] || 30
+      );
+
+    if (existing.rows.length) {
+
+      await pool.query(
+        `
+        UPDATE payments
+        SET
+          payment_id = $1,
+          external_reference = $2,
+          email = $3,
+          plan = $4,
+          amount = $5,
+          status = 'approved',
+          approved_at = $6,
+          active_until = $7
+        WHERE id = $8
+        `,
+        [
+          paymentId,
+          externalReference,
+          email,
+          plan,
+          payment.transaction_amount,
+          approvedAt,
+          activeUntil,
+          existing.rows[0].id
+        ]
+      );
+
+    } else {
+
+      await pool.query(
+        `
+        INSERT INTO payments (
+          payment_id,
+          external_reference,
+          name,
+          cpf,
+          email,
+          plan,
+          amount,
+          status,
+          approved_at,
+          active_until
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,$6,$7,'approved',$8,$9
+        )
+        `,
+        [
+          paymentId,
+          externalReference,
+          "",
+          "",
+          email,
+          plan,
+          payment.transaction_amount,
+          approvedAt,
+          activeUntil
+        ]
+      );
+
+    }
+
+    return res.json({
+
+      success: true,
+
+      recovered: true,
+
+      message:
+        "Pagamento aprovado recuperado com sucesso.",
+
+      paymentId,
+
+      status:
+        payment.status,
+
+      plan,
+
+      amount:
+        payment.transaction_amount,
+
+      email,
+
+      activeUntil,
+
+      telegram:
+        TELEGRAM_INVITE_URL
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      "RECOVER ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message
+
+    });
+
+  }
+
+});
+
+/* =========================================================
+   LISTAR PAGAMENTOS MERCADO PAGO
+========================================================= */
+
+app.get("/api/mercadopago-payments", async (req, res) => {
+
+  try {
+
+    const response =
+      await fetch(
+        "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=20",
+        {
+
+          headers: {
+            Authorization:
+              "Bearer " + MP_TOKEN
+          }
+
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      return res.status(response.status).json({
+
+        success: false,
+
+        message:
+          data.message ||
+          "Erro ao consultar pagamentos."
+
+      });
+
+    }
+
+    const payments =
+      (data.results || []).map(payment => ({
+
+        id:
+          payment.id,
+
+        status:
+          payment.status,
+
+        statusDetail:
+          payment.status_detail,
+
+        amount:
+          payment.transaction_amount,
+
+        description:
+          payment.description,
+
+        dateCreated:
+          payment.date_created,
+
+        dateApproved:
+          payment.date_approved,
+
+        email:
+          payment.payer?.email || null,
+
+        externalReference:
+          payment.external_reference,
+
+        paymentMethod:
+          payment.payment_method_id
+
+      }));
+
+    return res.json({
+
+      success: true,
+
+      total:
+        payments.length,
+
+      payments
+
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message
+
+    });
+
+  }
+
+});
+
+/* =========================================================
+   TESTE MERCADO PAGO
+========================================================= */
+
+app.get("/api/mercadopago-test", async (req, res) => {
+
+  try {
+
+    const response =
+      await fetch(
+        "https://api.mercadopago.com/v1/payment_methods",
+        {
+
+          headers: {
+
+            Authorization:
+              "Bearer " + MP_TOKEN
+
+          }
+
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      return res.status(response.status).json({
+
+        success: false,
+
+        httpStatus:
+          response.status,
+
+        message:
+          data.message ||
+          "Token recusado."
+
+      });
+
+    }
+
+    return res.json({
+
+      success: true,
+
+      httpStatus:
+        response.status,
+
+      message:
+        "Token aceito pelo Mercado Pago.",
+
+      paymentMethods:
+        Array.isArray(data)
+          ? data.length
+          : 0
+
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message
+
+    });
+
+  }
+
+});
+
+/* =========================================================
+   CONFIG TEST
+========================================================= */
+
+app.get("/api/config-test", (req, res) => {
+
+  const token =
+    process.env.MERCADOPAGO_ACCESS_TOKEN ||
+    "";
+
+  res.json({
+
+    server:
+      "online",
+
+    mercadoPagoTokenConfigured:
+      Boolean(token),
+
+    mercadoPagoTokenPrefix:
+      token
+        ? token.substring(0, 7)
+        : "",
+
+    mercadoPagoTokenLength:
+      token.length,
+
+    pixEnabled:
+      process.env.PIX_ENABLED === "true",
+
+    baseUrlConfigured:
+      Boolean(
+        process.env.BASE_URL
+      ),
+
+    telegramConfigured:
+      Boolean(
+        process.env.TELEGRAM_INVITE_URL
+      ),
+
+    databaseConfigured:
+      Boolean(
+        process.env.DATABASE_URL
+      ),
+
+    message:
+      "Configuração carregada com sucesso."
+
+  });
+
+});
+
+/* =========================================================
+   DIAGNÓSTICO PAGAMENTO
+========================================================= */
+
+app.get("/api/payment-diagnose", async (req, res) => {
+
+  try {
+
+    const db =
+      await pool.query(
+        `
+        SELECT *
+        FROM payments
+        ORDER BY id DESC
+        `
+      );
+
+    const mpResponse =
+      await fetch(
+        "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=20",
+        {
+
+          headers: {
+            Authorization:
+              "Bearer " + MP_TOKEN
+          }
+
+        }
+      );
+
+    const mpData =
+      await mpResponse.json();
+
+    return res.json({
+
+      success: true,
+
+      total:
+        db.rows.length,
+
+      databasePayment:
+        db.rows[0] || null,
+
+      payments:
+        (mpData.results || []).map(payment => ({
+
+          id:
+            payment.id,
+
+          status:
+            payment.status,
+
+          statusDetail:
+            payment.status_detail,
+
+          amount:
+            payment.transaction_amount,
+
+          description:
+            payment.description,
+
+          dateCreated:
+            payment.date_created,
+
+          dateApproved:
+            payment.date_approved,
+
+          email:
+            payment.payer?.email || null,
+
+          externalReference:
+            payment.external_reference,
+
+          paymentMethod:
+            payment.payment_method_id
+
+        }))
+
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message
+
+    });
+
+  }
+
+});
+
+/* =========================================================
+   HEALTH
+========================================================= */
+
+app.get("/api/health", async (req, res) => {
+
+  try {
+
+    await pool.query(
+      "SELECT 1"
+    );
+
+    return res.json({
+
+      success: true,
+
+      server:
+        "online",
+
+      database:
+        "online"
+
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+
+      success: false,
+
+      server:
+        "online",
+
+      database:
+        "offline",
 
       error:
         error.message
@@ -1373,680 +1782,9 @@ app.get("/api/debug-access", async (req, res) => {
 
 });
 
-
-/* =========================
-   RECUPERAR PAGAMENTO
-========================= */
-
-app.get(
-  "/api/recover-payment-by-id",
-  async (req, res) => {
-
-    try {
-
-      const id =
-        req.query.id;
-
-
-      if (!id) {
-
-        return res.json({
-
-          success: false,
-
-          message:
-            "Informe o ID do pagamento."
-
-        });
-
-      }
-
-
-      if (!MP_TOKEN) {
-
-        return res.status(500).json({
-
-          success: false,
-
-          message:
-            "Mercado Pago não configurado."
-
-        });
-
-      }
-
-
-      const response =
-        await fetch(
-          "https://api.mercadopago.com/v1/payments/" +
-          id,
-          {
-            headers: {
-              "Authorization":
-                "Bearer " + MP_TOKEN
-            }
-          }
-        );
-
-
-      const payment =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message:
-            "Pagamento não encontrado."
-
-        });
-
-      }
-
-
-      if (
-        payment.status !==
-        "approved"
-      ) {
-
-        return res.json({
-
-          success: false,
-
-          message:
-            "Pagamento ainda não está aprovado.",
-
-          status:
-            payment.status
-
-        });
-
-      }
-
-
-      const email =
-        payment.payer &&
-        payment.payer.email
-          ? normalizeEmail(
-              payment.payer.email
-            )
-          : "";
-
-
-      const description =
-        String(
-          payment.description || ""
-        ).toLowerCase();
-
-
-      let plan = "mensal";
-
-
-      if (
-        description.includes(
-          "trimestral"
-        )
-      ) {
-
-        plan = "trimestral";
-
-      } else if (
-        description.includes(
-          "semestral"
-        )
-      ) {
-
-        plan = "semestral";
-
-      } else if (
-        description.includes(
-          "anual"
-        )
-      ) {
-
-        plan = "anual";
-
-      }
-
-
-      const approvedAt =
-        payment.date_approved
-          ? new Date(
-              payment.date_approved
-            )
-          : new Date();
-
-
-      const activeUntil =
-        addDays(
-          approvedAt,
-          PLAN_DAYS[plan]
-        );
-
-
-      const existing =
-        await pool.query(
-          `
-          SELECT id
-          FROM payments
-          WHERE payment_id = $1
-          LIMIT 1
-          `,
-          [String(payment.id)]
-        );
-
-
-      if (
-        existing.rows.length > 0
-      ) {
-
-        await pool.query(
-          `
-          UPDATE payments
-          SET
-            email = $1,
-            plan = $2,
-            amount = $3,
-            status = 'approved',
-            approved_at = $4,
-            active_until = $5
-          WHERE payment_id = $6
-          `,
-          [
-            email,
-            plan,
-            payment.transaction_amount,
-            approvedAt,
-            activeUntil,
-            String(payment.id)
-          ]
-        );
-
-      } else {
-
-        await pool.query(
-          `
-          INSERT INTO payments
-          (
-            payment_id,
-            external_reference,
-            email,
-            plan,
-            amount,
-            status,
-            approved_at,
-            active_until
-          )
-          VALUES
-          (
-            $1,$2,$3,$4,$5,
-            'approved',
-            $6,$7
-          )
-          `,
-          [
-            String(payment.id),
-            payment.external_reference || "",
-            email,
-            plan,
-            payment.transaction_amount,
-            approvedAt,
-            activeUntil
-          ]
-        );
-
-      }
-
-
-      return res.json({
-
-        success: true,
-
-        recovered: true,
-
-        message:
-          "Pagamento aprovado recuperado com sucesso.",
-
-        paymentId:
-          String(payment.id),
-
-        status:
-          payment.status,
-
-        plan,
-
-        amount:
-          payment.transaction_amount,
-
-        email,
-
-        activeUntil,
-
-        telegram:
-          TELEGRAM_INVITE_URL
-
-      });
-
-
-    } catch (error) {
-
-      console.error(
-        "ERRO RECUPERANDO PAGAMENTO:",
-        error
-      );
-
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          "Erro interno ao recuperar pagamento."
-
-      });
-
-    }
-
-  }
-);
-
-
-/* =========================
-   LISTAR PAGAMENTOS
-========================= */
-
-app.get(
-  "/api/mercadopago-payments",
-  async (req, res) => {
-
-    try {
-
-      if (!MP_TOKEN) {
-
-        return res.status(500).json({
-
-          success: false,
-
-          message:
-            "Mercado Pago não configurado."
-
-        });
-
-      }
-
-
-      const response =
-        await fetch(
-          "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=20",
-          {
-            headers: {
-              "Authorization":
-                "Bearer " + MP_TOKEN
-            }
-          }
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message:
-            "Erro ao consultar pagamentos."
-
-        });
-
-      }
-
-
-      const payments =
-        (data.results || []).map(
-          payment => ({
-
-            id:
-              payment.id,
-
-            status:
-              payment.status,
-
-            statusDetail:
-              payment.status_detail,
-
-            amount:
-              payment.transaction_amount,
-
-            description:
-              payment.description,
-
-            dateCreated:
-              payment.date_created,
-
-            dateApproved:
-              payment.date_approved,
-
-            email:
-              payment.payer &&
-              payment.payer.email
-                ? payment.payer.email
-                : null,
-
-            externalReference:
-              payment.external_reference,
-
-            paymentMethod:
-              payment.payment_method_id
-
-          })
-        );
-
-
-      return res.json({
-
-        success: true,
-
-        total:
-          payments.length,
-
-        payments
-
-      });
-
-
-    } catch (error) {
-
-      console.error(
-        "ERRO LISTANDO PAGAMENTOS:",
-        error
-      );
-
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          "Erro interno."
-
-      });
-
-    }
-
-  }
-);
-
-
-/* =========================
-   TESTE MERCADO PAGO
-========================= */
-
-app.get(
-  "/api/mercadopago-test",
-  async (req, res) => {
-
-    try {
-
-      if (!MP_TOKEN) {
-
-        return res.json({
-
-          success: false,
-
-          message:
-            "Token não configurado."
-
-        });
-
-      }
-
-
-      const response =
-        await fetch(
-          "https://api.mercadopago.com/v1/payment_methods",
-          {
-            headers: {
-              "Authorization":
-                "Bearer " + MP_TOKEN
-            }
-          }
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        return res.status(
-          response.status
-        ).json({
-
-          success: false,
-
-          httpStatus:
-            response.status,
-
-          message:
-            data.message ||
-            "Token recusado."
-
-        });
-
-      }
-
-
-      return res.json({
-
-        success: true,
-
-        httpStatus:
-          response.status,
-
-        message:
-          "Token aceito pelo Mercado Pago.",
-
-        paymentMethods:
-          Array.isArray(data)
-            ? data.length
-            : 0
-
-      });
-
-
-    } catch (error) {
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
-    }
-
-  }
-);
-
-
-/* =========================
-   CONFIG TEST
-========================= */
-
-app.get(
-  "/api/config-test",
-  (req, res) => {
-
-    const token =
-      process.env.MERCADOPAGO_ACCESS_TOKEN ||
-      "";
-
-    return res.json({
-
-      server:
-        "online",
-
-      mercadoPagoTokenConfigured:
-        Boolean(token),
-
-      mercadoPagoTokenPrefix:
-        token
-          ? token.substring(0, 7)
-          : "",
-
-      mercadoPagoTokenLength:
-        token.length,
-
-      pixEnabled:
-        process.env.PIX_ENABLED === "true",
-
-      baseUrlConfigured:
-        Boolean(process.env.BASE_URL),
-
-      telegramConfigured:
-        Boolean(
-          process.env.TELEGRAM_INVITE_URL
-        ),
-
-      databaseConfigured:
-        Boolean(
-          process.env.DATABASE_URL
-        ),
-
-      message:
-        "Configuração carregada com sucesso."
-
-    });
-
-  }
-);
-
-
-/* =========================
-   DIAGNÓSTICO PAGAMENTO
-========================= */
-
-app.get(
-  "/api/payment-diagnose",
-  async (req, res) => {
-
-    try {
-
-      const result =
-        await pool.query(
-          `
-          SELECT
-            id,
-            payment_id,
-            external_reference,
-            name,
-            cpf,
-            email,
-            plan,
-            amount,
-            status,
-            created_at,
-            approved_at,
-            active_until
-          FROM payments
-          ORDER BY id DESC
-          LIMIT 20
-          `
-        );
-
-
-      return res.json({
-
-        success: true,
-
-        total:
-          result.rows.length,
-
-        payments:
-          result.rows
-
-      });
-
-
-    } catch (error) {
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
-    }
-
-  }
-);
-
-
-/* =========================
-   HEALTH CHECK
-========================= */
-
-app.get(
-  "/api/health",
-  async (req, res) => {
-
-    try {
-
-      await pool.query(
-        "SELECT 1"
-      );
-
-      return res.json({
-
-        success: true,
-
-        server:
-          "online",
-
-        database:
-          "online"
-
-      });
-
-    } catch (error) {
-
-      return res.status(500).json({
-
-        success: false,
-
-        server:
-          "online",
-
-        database:
-          "offline",
-
-        error:
-          error.message
-
-      });
-
-    }
-
-  }
-);
-
-
-/* =========================
-   INICIAR SERVIDOR
-========================= */
+/* =========================================================
+   START
+========================================================= */
 
 async function startServer() {
 
