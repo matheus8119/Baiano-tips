@@ -130,8 +130,9 @@ async function ensureTable() {
       active_until TIMESTAMPTZ
     )
   `);
-}
 
+  console.log("Tabela payments verificada com sucesso.");
+}
 /* =========================================================
    PÁGINA PRINCIPAL
 ========================================================= */
